@@ -63,7 +63,7 @@ class DataLoader(object):
         '''
         # Convert to the DataFrame and delete the duplicates
         walking_df = self.syn.tableQuery(query_builder).asDataFrame().drop_duplicates()
-
+        i = 0
         for _, row in walking_df.iterrows():
 
             # creating a dataframe for walking for
@@ -89,9 +89,12 @@ class DataLoader(object):
                 # Add the sub list to the over all lists
                 try:
                     merge_list = pd.concat([merge_list, temp_walking_df], axis=0).drop_duplicates()
-                    print(f"I've added the following healthCode to the list: {row['healthCode']}")
+
                 except NameError:
                     merge_list = temp_walking_df
+
+                i += 1
+                print(f"{i} - I've added the following healthCode to the list: {row['healthCode']}")
 
         # Adding the files to a CSV file
         # ==============================
