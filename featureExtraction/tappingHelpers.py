@@ -2,10 +2,10 @@ import numpy as np
 import json
 import os
 import functools
-from statistics import mean
+from statistics import mean, median
+from scipy.stats import median_absolute_deviation, pearsonr
 import statsmodels.api as sm
 import pandas as pd
-import operator
 
 # Tapping Helper Function
 ROOT_URL = os.path.join(os.getcwd(), "collected_data")
@@ -46,16 +46,20 @@ def ShapeTappingData(data):
     Extract the tapping information from each recorded samples in the file
 
     :param data: Tapping data sample
-    :type data: dict
-    :return: Return the tuple of data holding this information (time, buttonid, tap_coordination)
-    :rtype: (float, str, float, float)
+    :type data: list
+    :return: Return a list of tuples in the following format [(time, buttonid, coordination_x, coordination_y)]
+    :rtype: list
     """
 
-    time = data['TapTimeStamp']
-    button_id = data['TappedButtonId']
-    coord = get_xy((data['TapCoordinate']))
+    # List that oi
+    output_list = []
+    for item in data:
+        time = item['TapTimeStamp']
+        button_id = item['TappedButtonId']
+        coord = get_xy((item['TapCoordinate']))
+        output_list.append((time, button_id, coord[0], coord[1]))
 
-    return time, button_id, coord[0], coord[1]
+    return output_list
 
 
 def CleanTappedButtonNone(input_list):
@@ -178,3 +182,108 @@ def drift(x: list, y: list):
     dy = np.diff(y)
     return np.sqrt(np.power(dx, 2) + np.power(dy, 2))
 
+
+def extracttapping(tapping_data_list, tapping_data_list_non_cleaned):
+    """
+    Extract the Tapping features
+
+    :param tapping_data_list: List of tuples ready for tapping extraction
+    :type tapping_data_list: list
+    :param tapping_data_list_non_cleaned: Uncleaned tapping informatoin
+    :type   tapping_data_list_non_cleaned: list
+    :return: Return a dictionary of feature extracted
+    :rtype: dict
+    """
+
+    aux = GetLeftRightEventsAndTapIntervals(tapping_data_list, depressThr=20)
+    tap_inter = aux[1]
+    dat = aux[0]
+
+    if len(dat) == 0:
+        return None
+
+    # Extract the x coordination data from the shaped and cleaned list of tuples
+    x = foldl(lambda x_temp_list, x: x_temp_list.append(x[2]), [], dat)
+    y = foldl(lambda y_temp_list, y: y_temp_list.append(y[3]), [], dat)
+    mean_x = mean(x)
+
+    condition_func = lambda temp_d_x: np.array(x) < mean_x
+    bool_x_arr = condition_func(x)
+    i_l = np.where(bool_x_arr)[0]
+
+    condition_func = lambda temp_d_x: np.array(x) >= mean_x
+    bool_x_arr = condition_func(x)
+    i_r = np.where(bool_x_arr)[0]
+
+    drift_left = drift([x[item] for item in i_l], [y[item] for item in i_l])
+    drift_right = drift([x[item] for item in i_r], [y[item] for item in i_r])
+
+    try:
+        aux_acf = acf(tap_inter)
+    except ArithmeticError:
+        aux_acf = (None, None, None)
+
+    try:
+        aux_fatigue = fatigue(tap_inter)
+    except ArithmeticError:
+        aux_fatigue = (None, None, None)
+
+    # TODO Adding the proper implementation of DFA
+    # TODO Adding the DFA related features
+
+    # iqr function for 1-D array
+    def iqrFunc(x):
+        iqr = lambda x: np.percentile(x, [75, 25])
+        q3, q1 = iqr(tap_inter)
+        return q3 - q1
+
+    def buttonNonFreqCalcFunc(x):
+        non_button_list = foldl(
+            lambda temp_list, rec: temp_list.append(rec) if rec[1] == 'TappedButtonNone' else temp_list, [], x
+        )
+
+        return len(non_button_list) / len(x)
+
+    return {'meanTapInter': mean(tap_inter),
+            'medianTapInter': median(tap_inter),
+            'iqrTapInter': iqrFunc(tap_inter),
+            'minTapInter': min(tap_inter),
+            'maxTapInter': max(tap_inter),
+            'skewTapInter': skewness(tap_inter),
+            'kurTapInter': kurtosis(tap_inter),
+            'sdTapInter': np.std(tap_inter),
+            'madTapInter': median_absolute_deviation(tap_inter),
+            'cvTapInter': cv(tap_inter),
+            'rangeTapInter': (np.diff([min(tap_inter), max(tap_inter)])),
+            'tekoTapInter': mean_tkeo(tap_inter),
+            'ar1TapInter': aux_acf[2],
+            'ar2TapInter': aux_acf[3],
+            'fatigue10TapInter': aux_fatigue[1],
+            'fatigue25TapInter': aux_fatigue[2],
+            'fatigue50TapInter': aux_fatigue[3],
+            'meanDriftLeft': mean(drift_left),
+            'medianDriftLeft': median(drift_left),
+            'iqrDriftLeft': iqrFunc(drift_left),
+            'minDriftLeft': min(drift_left),
+            'maxDriftLeft': max(drift_left),
+            'skewDriftLeft': skewness(drift_left),
+            'kurDriftLeft': kurtosis(drift_left),
+            'sdDriftLeft': np.std(drift_left),
+            'madDriftLeft': median_absolute_deviation(drift_left),
+            'cvDriftLeft': cv(drift_left),
+            'rangeDriftLeft': (np.diff([min(drift_left), max(drift_left)])),
+            'meanDriftRight': mean(drift_right),
+            'medianDriftRight': median(drift_right),
+            'iqrDriftRight': iqrFunc(drift_right),
+            'minDriftRight': min(drift_right),
+            'maxDriftRight': max(drift_right),
+            'skewDriftRight': skewness(drift_right),
+            'kurDriftRight': kurtosis(drift_right),
+            'sdDriftRight': np.std(drift_right),
+            'madDriftRight': median_absolute_deviation(drift_right),
+            'cvDriftRight': cv(drift_right),
+            'rangeDriftRight': (np.diff([min(drift_right), max(drift_right)])),
+            'numberTaps': len(dat),
+            'buttonNonFreq': buttonNonFreqCalcFunc(tapping_data_list_non_cleaned),
+            'corXY': pearsonr(x, y)
+            }
