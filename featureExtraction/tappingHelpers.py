@@ -147,9 +147,8 @@ def mean_tkeo(x):
     if len(x) < 3:
         return None
     else:
-        y = np.power(x, 2) - np.concatenate((x[1:], [0])) * np.concatenate(([0], x[:len(x) - 1]))
-        return np.mean(y)
-
+        y = np.power(x, 2) - np.concatenate((x[1:], [np.nan])) * np.concatenate(([np.nan], x[0:len(x) - 1]))
+        return np.mean(y[np.logical_not(np.isnan(y))])
 
 
 def fatigue(x):
