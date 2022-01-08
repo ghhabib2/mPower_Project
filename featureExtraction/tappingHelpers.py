@@ -15,14 +15,15 @@ foldl = lambda func, acc, xs: functools.reduce(func, xs, acc)
 
 
 def tested_jason():
-    file_path = os.path.join(ROOT_URL
-                             ,
+    file_path = os.path.join(ROOT_URL,
                              "tapping_results.json.TappingSamples-41126e25-aa15-419f-af14-1aa8e78d870e1383831155599447443.tmp")
 
     with open(file_path) as f:
         data = json.load(f)
-        for i in data:
-            print(i['TapTimeStamp'], "\n")
+        shaped_unfiltered = ShapeTappingData(data)
+        shaped_filtered = CleanTappedButtonNone(shaped_unfiltered)
+        feature_vector = extracttapping(shaped_filtered, shaped_unfiltered)
+        print(feature_vector)
 
 
 def get_xy(coordination_str):
@@ -74,10 +75,13 @@ def CleanTappedButtonNone(input_list):
     :rtype: list 
     """
 
+    def adder(o_list: list, data_record: tuple):
+        if data_record[1] != "TappedButtonNone":
+            o_list.append(data_record)
+        return o_list
+
     # Filter out the `TappedButtonNone` from the list of data
-    output_list = foldl(
-        lambda o_list, data_record: o_list.append(data_record) if data_record[1] is not "TappedButtonNone" else o_list,
-        [], input_list)
+    output_list = foldl(adder, [], input_list)
 
     # Sort the list of tuples based on the filtered output and timestamp
     return sorted(output_list, key=lambda x: x[0])
@@ -95,15 +99,24 @@ def GetLeftRightEventsAndTapIntervals(data: list, depressThr=20):
     :rtype: (list, list)
     """
 
+    def time_adder(o_list: list, x: tuple):
+        o_list.append(x[0])
+        return o_list
+
+    def x_adder(o_list: list, x: tuple):
+        o_list.append(x[2])
+        return o_list
+
     # Extract the list of recorded times
-    time_list = foldl(lambda t_temp_list, x: t_temp_list.append(x[0]), [], data)
+    time_list = foldl(time_adder, [], data)
     tap_t = [time - time_list[0] for time in time_list]
 
     # Find left/right finger "depress" event
-    x_list = foldl(lambda x_temp_list, x: x_temp_list.append(x[2]), [], data)
-    x_list = x_list - mean(x_list)
+    x_list = foldl(x_adder, [], data)
+    x_list = np.array(x_list) - np.mean(x_list)
     d_x = np.diff(x_list).tolist()
-    condition_func = lambda temp_d_x: np.array(temp_d_x) > depressThr
+
+    condition_func = lambda temp_d_x: np.abs(temp_d_x) > depressThr
     bool_d_x = condition_func(d_x)
 
     # Filter data
@@ -134,8 +147,9 @@ def mean_tkeo(x):
     if len(x) < 3:
         return None
     else:
-        y = np.power(x, 2) - np.array(x[1:]) * np.array(x[0:len(x) - 1])
+        y = np.power(x, 2) - np.concatenate((x[1:], [0])) * np.concatenate(([0], x[:len(x) - 1]))
         return np.mean(y)
+
 
 
 def fatigue(x):
@@ -174,7 +188,7 @@ def acf(x):
     if len(x) < 3:
         return None, None, None
     else:
-        sm.tsa.acf(x, nlags=2)
+        return sm.tsa.acf(x, nlags=2)
 
 
 def drift(x: list, y: list):
@@ -203,8 +217,17 @@ def extracttapping(tapping_data_list, tapping_data_list_non_cleaned):
         return None
 
     # Extract the x coordination data from the shaped and cleaned list of tuples
-    x = foldl(lambda x_temp_list, x: x_temp_list.append(x[2]), [], dat)
-    y = foldl(lambda y_temp_list, y: y_temp_list.append(y[3]), [], dat)
+    def x_adder(o_list: list, x: tuple):
+        o_list.append(x[2])
+        return o_list
+
+    def y_adder(o_list: list, x: tuple):
+        o_list.append(x[3])
+        return o_list
+
+    x = foldl(x_adder, [], dat)
+    y = foldl(y_adder, [], dat)
+
     mean_x = mean(x)
 
     condition_func = lambda temp_d_x: np.array(x) < mean_x
@@ -238,9 +261,13 @@ def extracttapping(tapping_data_list, tapping_data_list_non_cleaned):
         return q3 - q1
 
     def buttonNonFreqCalcFunc(x):
-        non_button_list = foldl(
-            lambda temp_list, rec: temp_list.append(rec) if rec[1] == 'TappedButtonNone' else temp_list, [], x
-        )
+
+        def adder(o_list: list, data_record: tuple):
+            if data_record[1] == "TappedButtonNone":
+                o_list.append(data_record)
+            return o_list
+
+        non_button_list = foldl(adder, [], x)
 
         return len(non_button_list) / len(x)
 
