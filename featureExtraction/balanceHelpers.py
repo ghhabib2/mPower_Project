@@ -1,6 +1,7 @@
 import numpy as np
 import json
 import os
+import utils.stat as stat
 import math
 from datetime import timedelta, datetime
 import functools
@@ -58,3 +59,98 @@ def shape_balance_data(data):
     # Return the data for further process.
     return list(zip(time_stamp, user_acceleration[:, 0], user_acceleration[:, 1], user_acceleration[:, 2]))
 
+
+def single_axis_features(data, time):
+    """
+    Calculate the features for single axis
+
+    :param data: Data of the axis as list
+    :type data: list
+    :param time: Time list based on the information shaped
+    :type time: list
+    :return: dictionary with features extracted for the axis.
+    :rtype: dict
+    """
+
+    mean_x = np.mean(data)
+    sd_x = np.std(data)
+    mod_x = stat.mode(data)
+    skew_x = stat.skewness(data)
+    kur_x = stat.kurtosis(data)
+    aux_x = np.quantile(data, q=[0, 0.25, 0.5, 0.75, 1])
+    q1_x = aux_x[1]
+    median_x = aux_x[2]
+    q3_x = aux_x[3]
+    iqrx = q3_x - q1_x
+    range_x = aux_x[4] - aux_x[0]
+    acf_x = stat.acf(data, n_lags=1)
+    zcr_x = stat.zcr(data)
+    # TODO find an stable way for calculation of DFA. Fow now pass the value as np.nan
+    dfa_x = np.nan
+    cv_x = stat.cv(data)
+    tkeo_x = stat.mean_tkeo(data)
+    lsp_x = stat.lsp(data, time)
+    # TODO find the peak of the power and in which frequency it happenss
+
+    # TODO return the features as vector.
+
+    raise NotImplemented("This method has not been implemented yet")
+
+
+def accel_low_pass_filter(data, alpha):
+    """
+    Apply low pass filter on information of motion sensor
+    :param data: Data to be processed
+    :type data: list
+    :param alpha: Alpha value to by applied in LPF
+    :type alpha : float
+    :return: Return the data after applying the LFP
+    :rtype : list
+    """
+    # Convert list to numpy array
+    dat = np.array(data)
+
+    n = len(data)
+    a_x = dat[:, 1]
+    a_y = dat[:, 2]
+    a_z = dat[:, 3]
+
+    for i in range(1, n):
+        a_x[i] = alpha * a_x[i] + (1 - alpha) * a_x[i - 1]
+        a_y[i] = alpha * a_y[i] + (1 - alpha) * a_y[i - 1]
+        a_z[i] = alpha * a_z[i] + (1 - alpha) * a_z[i - 1]
+
+    dat[:, 1] = a_x
+    dat[:, 2] = a_y
+    dat[:, 3] = a_z
+
+    return list(dat)
+
+
+def get_gait_features(data, alpha=1):
+    """
+    Extract the features based on the shaped data
+
+    :param data: Data to be processed for feature extraction
+    :type data: list
+    :param alpha: Alpha value for LFP process. Default value is 1 unless changed by the user
+    :type alpha: float
+    :return:
+    """
+
+    # Apply the LFP while converting to numpy array for convince of addressing and computation
+    dat = np.array(accel_low_pass_filter(data, alpha))
+
+    x = dat[:, 1]
+    y = dat[:, 2]
+    z = dat[:, 3]
+
+    aa = np.sqrt(x**2 + y**2 + z**2)
+    aj = np.sqrt(np.diff(x)**2 + np.diff(y)**2 + np.diff(z)**2)
+    t = dat[:, 0]
+
+    # TODO calculate the SingleAxisFeatures for each of the above vectors
+    # TODO Calcualte the coorelations between the x, y and z vectors.
+
+    # TODO return the final feature dictionarys
+    raise NotImplemented("This method has not been implemented yet")
