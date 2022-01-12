@@ -23,7 +23,8 @@ def tested_jason():
 
     with open(file_path) as f:
         data = json.load(f)
-        shape_balance_data(data)
+        data = shape_balance_data(data)
+        print(get_gait_features(data))
 
 
 def shape_balance_data(data):
@@ -41,9 +42,9 @@ def shape_balance_data(data):
         return o_list
 
     def accel_adder(o_list: list, item):
-        o_list.append([item['userAcceleration']['x'],
-                       item['userAcceleration']['y'],
-                       item['userAcceleration']['z']])
+        o_list.append([float(item['userAcceleration']['x']),
+                       float(item['userAcceleration']['y']),
+                       float(item['userAcceleration']['z'])])
         return o_list
 
     time_stamp = foldl(time_stamp_adder, [], data)
@@ -89,12 +90,28 @@ def single_axis_features(data, time):
     dfa_x = np.nan
     cv_x = stat.cv(data)
     tkeo_x = stat.mean_tkeo(data)
-    lsp_x = stat.lsp(data, time)
-    # TODO find the peak of the power and in which frequency it happenss
-
-    # TODO return the features as vector.
-
-    raise NotImplemented("This method has not been implemented yet")
+    frequency, power = stat.lsp(data, time)
+    p0_x = max(power)
+    f0_x = frequency[list(power).index(p0_x)]
+    # Return the extracted features as a dictionary
+    return {"mean": mean_x,
+            "sd": sd_x,
+            "mode": mod_x,
+            "skew": skew_x,
+            "kur": kur_x,
+            "q1": q1_x,
+            "median": median_x,
+            "q3": q3_x,
+            "iqr": iqrx,
+            "range": range_x,
+            "acf": acf_x,
+            "zcr": zcr_x,
+            "dfa": dfa_x,
+            "cv": cv_x,
+            "tkeo": tkeo_x,
+            "F0X": f0_x,
+            "P0X": p0_x
+            }
 
 
 def accel_low_pass_filter(data, alpha):
@@ -145,12 +162,27 @@ def get_gait_features(data, alpha=1):
     y = dat[:, 2]
     z = dat[:, 3]
 
-    aa = np.sqrt(x**2 + y**2 + z**2)
-    aj = np.sqrt(np.diff(x)**2 + np.diff(y)**2 + np.diff(z)**2)
+    aa = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    aj = np.sqrt(np.diff(x) ** 2 + np.diff(y) ** 2 + np.diff(z) ** 2)
     t = dat[:, 0]
 
-    # TODO calculate the SingleAxisFeatures for each of the above vectors
-    # TODO Calcualte the coorelations between the x, y and z vectors.
+    #############################
+    out_x = single_axis_features(x, t)
+    out_y = single_axis_features(y, t)
+    out_z = single_axis_features(z, t)
+    out_aa = single_axis_features(aa, t)
+    out_aj = single_axis_features(aj, list(np.array(t)[1:]))
+    #############################
+    cor_xy = stat.cor(x, y)
+    cor_xz = stat.cor(x, z)
+    cor_yz = stat.cor(y, z)
+    cors = [cor_xy, cor_xz, cor_yz]
 
-    # TODO return the final feature dictionarys
-    raise NotImplemented("This method has not been implemented yet")
+    return {
+        "outX": out_x,
+        "outY": out_y,
+        "outZ": out_z,
+        "outAA": out_aa,
+        "outAJ": out_aj,
+        "cors": cors,
+    }
