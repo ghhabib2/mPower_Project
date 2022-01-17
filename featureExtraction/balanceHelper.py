@@ -218,11 +218,19 @@ def center_acceleratoin(x):
 def box_volume_feature(data):
     """
     :param data: Data to be analysed
-    :return:
+    :type data: np.ndarray
+    :return: The numpy array that holds the box volume features
+    :rtype: np.ndarray
     """
 
     data = center_acceleratoin(data)
-    au_x = get_xyz_displacement(data)
-
-    # TODO do the feature calculation based on the following link
-    # https://github.com/ghhabib2/mPower-sdata/edit/master/featureExtraction/balanceHelpers.R
+    aux = get_xyz_displacement(data)
+    _, _, _, rd_x = stat.iqr_median_range_calculator(aux[0])
+    _, _, _, rd_y = stat.iqr_median_range_calculator(aux[1])
+    _, _, _, rd_z = stat.iqr_median_range_calculator(aux[2])
+    d_vol = np.diff(rd_x) * np.diff(rd_y) * np.diff(rd_z)
+    _, _, _, rdd_x = stat.iqr_median_range_calculator(np.diff(aux[0]))
+    _, _, _, rdd_y = stat.iqr_median_range_calculator(np.diff(aux[1]))
+    _, _, _, rdd_z = stat.iqr_median_range_calculator(np.diff(aux[2]))
+    dd_vol = np.diff(rdd_x) * np.diff(rdd_y) * np.diff(rdd_z)
+    return np.concatenate((d_vol, dd_vol))
