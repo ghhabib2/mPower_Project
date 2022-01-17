@@ -44,7 +44,7 @@ def iqr_median_range_calculator(x):
     Simultaneously calculating the iqr, median and range of a vector
 
     :param x: Target vector
-    :type x: list
+    :type x: np.ndarry
     :return: Return the tuple with the following format (iqr, median, range)
     :rtype: tuple
     """
