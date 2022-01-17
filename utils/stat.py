@@ -39,6 +39,25 @@ def mad(x):
     return median_absolute_deviation(x)
 
 
+def iqr_median_range_calculator(x):
+    """
+    Simultaneously calculating the iqr, median and range of a vector
+
+    :param x: Target vector
+    :type x: list
+    :return: Return the tuple with the following format (iqr, median, range)
+    :rtype: tuple
+    """
+
+    aux_quantile = np.quantile(x, q=[0, 0.25, 0.5, 0.75, 1])
+
+    x_iqr = aux_quantile[3] - aux_quantile[1]
+    x_median = aux_quantile[2]
+    x_range = aux_quantile[4] - aux_quantile[0]
+
+    return x_iqr, x_median, x_range
+
+
 def cv(x):
     """
     :param x: A list
