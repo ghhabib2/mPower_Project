@@ -24,7 +24,7 @@ def tested_jason():
     with open(file_path) as f:
         data = json.load(f)
         data = shape_balance_data(data)
-        print(get_gait_features(data))
+        print(get_balance_features(data))
 
 
 def shape_balance_data(data):
@@ -78,17 +78,17 @@ def trim_data(data, time_start=5, time_end=None):
     time = np.array(data)[:, 0]
 
     if time_end is None:
-        time_end = time[len(time)]
+        time_end = time[len(time)-1]
 
     # Calculate the starting and ending index
-    start_index = np.where(time == min(time[time >= time_start]))[0]
-    end_index = np.where(time == max(time[time <= time_start]))[0]
+    start_index = np.where(time == min(time[time >= time_start]))[0][0]
+    end_index = np.where(time == max(time[time <= time_end]))[0][0]
 
     # trim the data based on the selected starting and ending indexes
     trimmed_data = np.array(data)[start_index:end_index, :]
 
     # Find the new time stamps based on the newly calculated interval.
-    trimmed_data[0] = trimmed_data[:, 0] - trimmed_data[0, 0]
+    trimmed_data[:, 0] = trimmed_data[:, 0] - trimmed_data[0, 0]
 
     # Return the trimmed and reshaped data
     return trimmed_data
@@ -116,6 +116,7 @@ def get_balance_features(data, time_start=5, time_end=None):
     dfa_aa = np.nan
 
     bpa = feature_bpa(data)
+    dist = box_volume_feature(data)
 
 
 # TODO find out what is BPA?
@@ -133,9 +134,9 @@ def feature_bpa(post):
 
     time = post[:, 0] - post[0, 0]
 
-    d_time = time[len(time)] - time[0]
+    d_time = time[len(time)-1] - time[0]
 
-    post = post[1:, :]
+    post = post[:, 1:]
 
     n = len(post)
 
@@ -145,10 +146,10 @@ def feature_bpa(post):
     post_force = post - np.tile(mg, (n, 1))
 
     dt = np.diff(time)
-    dt = np.concatenate((dt, [dt[len(dt)]]))
+    dt = np.concatenate((dt, [dt[len(dt)-1]]))
 
     # np.transpose([an_array] * repetitions)
-    post_vel = np.cumsum((post_force * np.transpose([dt] * 3)))
+    post_vel = np.cumsum((post_force * np.transpose([dt] * 3)), axis=1)
 
     # Average scaled power X, Y, Z
     post_power = np.mean((0.5 * 70 * post_vel ** 2).sum(axis=0) / d_time) / 1e4
