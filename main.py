@@ -1,6 +1,6 @@
 from data_loader import AccumulatedDataLoader
 import featureExtraction.tappingHelpers as tappingHelper
-import featureExtraction.gaitHelpers as gaitHelpers
+import featureExtraction.balanceHelper as balanceHelper
 
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
@@ -28,4 +28,4 @@ def data_loader():
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     # data_loader()
-    gaitHelpers.tested_jason()
+    balanceHelper.tested_jason()

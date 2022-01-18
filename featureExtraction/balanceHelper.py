@@ -24,7 +24,7 @@ def tested_jason():
     with open(file_path) as f:
         data = json.load(f)
         data = shape_balance_data(data)
-        print(get_gait_features(data))
+        print(get_balance_features(data))
 
 
 def shape_balance_data(data):
@@ -78,17 +78,17 @@ def trim_data(data, time_start=5, time_end=None):
     time = np.array(data)[:, 0]
 
     if time_end is None:
-        time_end = time[len(time)]
+        time_end = time[len(time) - 1]
 
     # Calculate the starting and ending index
-    start_index = np.where(time == min(time[time >= time_start]))[0]
-    end_index = np.where(time == max(time[time <= time_start]))[0]
+    start_index = np.where(time == min(time[time >= time_start]))[0][0]
+    end_index = np.where(time == max(time[time <= time_end]))[0][0]
 
     # trim the data based on the selected starting and ending indexes
     trimmed_data = np.array(data)[start_index:end_index, :]
 
     # Find the new time stamps based on the newly calculated interval.
-    trimmed_data[0] = trimmed_data[:, 0] - trimmed_data[0, 0]
+    trimmed_data[:, 0] = trimmed_data[:, 0] - trimmed_data[0, 0]
 
     # Return the trimmed and reshaped data
     return trimmed_data
@@ -108,7 +108,7 @@ def get_balance_features(data, time_start=5, time_end=None):
     mode_aa = stat.mode(aa)
     skew_aa = stat.skewness(aa)
     kur_aa = stat.kurtosis(aa)
-    iqr_aa, median_aa, range_aa = stat.iqr_median_range_calculator(aa)
+    q_1aa, q_3aa, iqr_aa, median_aa, range_aa = stat.iqr_median_range_calculator(aa)
     acf_aa = stat.acf(aa, n_lags=1)
     zcr_aa = stat.zcr(aa)
 
@@ -116,6 +116,24 @@ def get_balance_features(data, time_start=5, time_end=None):
     dfa_aa = np.nan
 
     bpa = feature_bpa(data)
+    dist = box_volume_feature(data)
+
+    return {'meanAA': mean_aa,
+            'sdAA': sd_aa,
+            'mondeAA': mode_aa,
+            'skewAA': skew_aa,
+            'kurAA': kur_aa,
+            'q1AA': q_1aa,
+            'medianAA': median_aa,
+            'q3AA': q_3aa,
+            'iqrAA': iqr_aa,
+            'range_AA': range_aa,
+            'acfAA': acf_aa,
+            'zcrAA': zcr_aa,
+            'dfaAA': dfa_aa,
+            'bpa': bpa,
+            'dist': dist
+            }
 
 
 # TODO find out what is BPA?
@@ -133,9 +151,9 @@ def feature_bpa(post):
 
     time = post[:, 0] - post[0, 0]
 
-    d_time = time[len(time)] - time[0]
+    d_time = time[len(time) - 1] - time[0]
 
-    post = post[1:, :]
+    post = post[:, 1:]
 
     n = len(post)
 
@@ -145,10 +163,10 @@ def feature_bpa(post):
     post_force = post - np.tile(mg, (n, 1))
 
     dt = np.diff(time)
-    dt = np.concatenate((dt, [dt[len(dt)]]))
+    dt = np.concatenate((dt, [dt[len(dt) - 1]]))
 
     # np.transpose([an_array] * repetitions)
-    post_vel = np.cumsum((post_force * np.transpose([dt] * 3)))
+    post_vel = np.cumsum((post_force * np.transpose([dt] * 3)), axis=1)
 
     # Average scaled power X, Y, Z
     post_power = np.mean((0.5 * 70 * post_vel ** 2).sum(axis=0) / d_time) / 1e4
@@ -157,7 +175,7 @@ def feature_bpa(post):
     post_mag = np.sqrt((post_force ** 2).sum(axis=1))
 
     # Maximum force
-    post_peak = np.quantile(post_mag, [0.95]) / 10
+    post_peak = np.quantile(post_mag, [0.95])[0] / 10
 
     # Detrended fluctuation analysis scaling exponent
     # TODO fluctuation analysis using the DFA. Since we do not have DFA yet. This will be postpoined.
@@ -184,7 +202,7 @@ def get_displacement(time, accel):
     vel.append(0)
     dis.append(0)
 
-    for i in range(start=1, stop=n):
+    for i in range(1, n):
         vel.append(vel[i - 1] + 0.5 * (accel[i] + accel[i - 1]) * delta_time[i])
         dis.append(dis[i - 1] + 0.5 * (vel[i] + vel[i - 1]) * delta_time[i])
 
@@ -200,9 +218,9 @@ def get_xyz_displacement(x):
     :return: Return the tuple of displacement for each of the axis
     :rtype: tuple
     """
-    dist_x = get_displacement(x[:, 0], x[:, 1])
-    dist_y = get_displacement(x[:, 0], x[:, 2])
-    dist_z = get_displacement(x[:, 0], x[:, 3])
+    dist_x = get_displacement(x[:, 0], x[:, 1])[1]
+    dist_y = get_displacement(x[:, 0], x[:, 2])[1]
+    dist_z = get_displacement(x[:, 0], x[:, 3])[1]
 
     return dist_x, dist_y, dist_z
 
@@ -225,12 +243,12 @@ def box_volume_feature(data):
 
     data = center_acceleratoin(data)
     aux = get_xyz_displacement(data)
-    _, _, _, rd_x = stat.iqr_median_range_calculator(aux[0])
-    _, _, _, rd_y = stat.iqr_median_range_calculator(aux[1])
-    _, _, _, rd_z = stat.iqr_median_range_calculator(aux[2])
-    d_vol = np.diff(rd_x) * np.diff(rd_y) * np.diff(rd_z)
-    _, _, _, rdd_x = stat.iqr_median_range_calculator(np.diff(aux[0]))
-    _, _, _, rdd_y = stat.iqr_median_range_calculator(np.diff(aux[1]))
-    _, _, _, rdd_z = stat.iqr_median_range_calculator(np.diff(aux[2]))
-    dd_vol = np.diff(rdd_x) * np.diff(rdd_y) * np.diff(rdd_z)
-    return np.concatenate((d_vol, dd_vol))
+    _, _, _, _, rd_x = stat.iqr_median_range_calculator(aux[0])
+    _, _, _, _, rd_y = stat.iqr_median_range_calculator(aux[1])
+    _, _, _, _, rd_z = stat.iqr_median_range_calculator(aux[2])
+    d_vol = (np.diff(rd_x) * np.diff(rd_y) * np.diff(rd_z))[0]
+    _, _, _, _, rdd_x = stat.iqr_median_range_calculator(np.diff(aux[0]))
+    _, _, _, _, rdd_y = stat.iqr_median_range_calculator(np.diff(aux[1]))
+    _, _, _, _, rdd_z = stat.iqr_median_range_calculator(np.diff(aux[2]))
+    dd_vol = (np.diff(rdd_x) * np.diff(rdd_y) * np.diff(rdd_z))[0]
+    return np.concatenate(([d_vol], [dd_vol]))
