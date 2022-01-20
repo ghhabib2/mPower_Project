@@ -9,7 +9,6 @@ import time
 import pandas as np
 
 ROOT_PATH = os.path.join(os.getcwd(), "collected_data")
-
 MEMORY_DATA_PATH = os.path.join(ROOT_PATH, "memory_data")
 WALKING_DATA = os.path.join(ROOT_PATH, "walking_data")
 TPPING_DATA_PATH = os.path.join(ROOT_PATH, "tapping_data")
