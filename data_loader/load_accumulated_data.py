@@ -13,6 +13,7 @@ ROOT_PATH = os.path.join(os.getcwd(), "collected_data")
 MEMORY_DATA_PATH = os.path.join(ROOT_PATH, "memory_data")
 WALKING_DATA = os.path.join(ROOT_PATH, "walking_data")
 TPPING_DATA_PATH = os.path.join(ROOT_PATH, "tapping_data")
+VOICE_DATA_PATH = os.path.join(ROOT_PATH, "voice_data")
 
 
 class AccumulatedDataLoader(DataLoader):
@@ -48,7 +49,8 @@ class AccumulatedDataLoader(DataLoader):
         memory_df = None
         # Balance and gait information
         walking_df = None
-
+        # Voice information
+        voice_df = None
         print("Start process")
 
         # Iterate records
@@ -125,7 +127,13 @@ class AccumulatedDataLoader(DataLoader):
             temp_walking_df = walking_data.asDataFrame()
 
             walkingMap = self.syn.downloadTableColumns(walking_data,
-                                                       ["deviceMotion_walking_outbound.json.items",
+                                                       ["accel_walking_outbound.json.items",
+                                                        "deviceMotion_walking_outbound.json.items",
+                                                        "pedometer_walking_outbound.json.items",
+                                                        "accel_walking_return.json.items",
+                                                        "deviceMotion_walking_return.json.items",
+                                                        "pedometer_walking_return.json.items",
+                                                        "accel_walking_rest.json.items",
                                                         "deviceMotion_walking_rest.json.items"])
 
             for row in walkingMap.items():
@@ -140,6 +148,37 @@ class AccumulatedDataLoader(DataLoader):
             else:
                 walking_df = pd.concat((walking_df, temp_walking_df))
 
+            # Read the voice information
+            # start with fetching the walking information
+            # ===========================================
+            print("Collecting voice information for ", healt_code['healthCode'])
+            query_builder = f"""SELECT *  
+                                       FROM syn5511444 
+                                       Where
+                                           healthCode = '{healt_code['healthCode']}'
+                                       """
+            # Convert to the DataFrame
+            voice_data = self.syn.tableQuery(query_builder)
+
+            temp_voice_df = voice_data.asDataFrame()
+
+            voiceMap = self.syn.downloadTableColumns(voice_data,
+                                                     ["audio_audio.m4a",
+                                                      "audio_countdown.m4a",
+                                                      ])
+
+            for row in voiceMap.items():
+                # Target file address
+                dist_path = os.path.join(VOICE_DATA_PATH, f"{row[0]}.m4a")
+                src_path = row[1]
+                # Copy file to the new path
+                copyfile(src_path, dist_path)
+
+            if voice_df is None:
+                voice_df = temp_walking_df
+            else:
+                voice_df = pd.concat((voice_df, temp_voice_df))
+
             print("Process ends for ", healt_code["healthCode"])
             print("===========================================")
             time.sleep(5)
@@ -150,10 +189,12 @@ class AccumulatedDataLoader(DataLoader):
         tapping_data_csv_path = os.path.join(ROOT_PATH, "tapping_unique_csv_data.csv")
         memory_data_csv_path = os.path.join(ROOT_PATH, "memory_unique_csv_data.csv")
         walking_data_csv_path = os.path.join(ROOT_PATH, "walking_unique_csv_data.csv")
+        voice_data_csv_path = os.path.join(ROOT_PATH, "voice_unique_csv_data.csv")
 
         # Save data to CSV
         walking_df.to_csv(walking_data_csv_path, index=False)
         memory_df.to_csv(memory_data_csv_path, index=False)
         tapping_df.to_csv(tapping_data_csv_path, index=False)
+        voice_df.to_csv(voice_data_csv_path, index=False)
 
         print("Done.")
