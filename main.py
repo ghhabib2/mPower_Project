@@ -4,7 +4,7 @@ from utils import signal_plot
 import os
 import numpy as np
 
-ROOT_PATH = os.path.join(os.getcwd(),"collected_data")
+ROOT_PATH = os.path.join(os.getcwd(), "collected_data")
 
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
@@ -55,9 +55,9 @@ def plotter():
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    # data_loader()
+    data_loader()
     # balanceHelper.tested_jason()
     #  tappingHelpers.tested_jason()
-    memoryHelpers.tested_jason()
+    #memoryHelpers.tested_jason()
     #plotter()
 
