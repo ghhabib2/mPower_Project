@@ -1,9 +1,9 @@
 # Define the libraries Roots
 import os
-import librosa
 import numpy as np
 import matlab.engine
 import soundfile as sf
+import librosa
 
 BASE_DIR = os.getcwd()
 MATLAB_ROOT = os.path.join(BASE_DIR, "matlab_root")
@@ -16,7 +16,7 @@ RPDE = os.path.join(MATLAB_ROOT, "rpde")
 SHRP = os.path.join(MATLAB_ROOT, "shrp")
 
 
-def matlab_base_feature_downloader(file_path, segment_duration=5):
+def matlab_base_feature_downloader(file_path, segment_duration=2):
     """
     Download the mfcc features based on the information presented in data file
 

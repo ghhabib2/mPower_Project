@@ -11,7 +11,9 @@ import abc
 import os
 
 
-ROOT = os.path.join(os.getcwd(), "collected_data")
+user_home_path = user_path = os.path.expanduser("~")
+
+
 
 
 class DataLoader(object):
@@ -28,6 +30,12 @@ class DataLoader(object):
         :param password: Password of the user for Synapse Service
         :type password: str
         """
+
+        self.ROOT_PATH = os.path.join(user_home_path, "Documents/collected_data_mpower")
+        self.MEMORY_DATA_PATH = os.path.join(self.ROOT_PATH, "memory_data")
+        self.WALKING_DATA = os.path.join(self.ROOT_PATH, "walking_data")
+        self.TPPING_DATA_PATH = os.path.join(self.ROOT_PATH, "tapping_data")
+        self.VOICE_DATA_PATH = os.path.join(self.ROOT_PATH, "voice_data")
 
         try:
             self.syn = synapseclient.login(username, password)

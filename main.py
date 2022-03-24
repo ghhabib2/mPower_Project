@@ -1,4 +1,4 @@
-from data_loader import AccumulatedDataLoader
+from data_loader import VoiceDataLoader
 from featureExtraction import balanceHelper,gaitHelpers, tappingHelpers, memoryHelpers
 from utils import signal_plot
 import os
@@ -11,11 +11,11 @@ ROOT_PATH = os.path.join(os.getcwd(), "collected_data")
 
 def data_loader():
     # Get an object of Typing Data loader for loading Tapping data
-    data_loader_object = AccumulatedDataLoader(
+    data_loader_object = VoiceDataLoader(
         username='ghaffh1@mcmaster.ca',
         password='As@hn6162')
 
-    data = data_loader_object.load_unique_data_records()
+    data_loader_object.feature_extractor()
 
     # Print the number of data records
     print(f"Number of unique healthCode in the data set is: {data_loader_object.unique_data_record_number}")
