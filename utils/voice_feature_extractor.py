@@ -4,6 +4,7 @@ import numpy as np
 import matlab.engine
 import soundfile as sf
 import librosa
+import time
 
 BASE_DIR = os.getcwd()
 MATLAB_ROOT = os.path.join(BASE_DIR, "matlab_root")
@@ -53,58 +54,66 @@ def matlab_base_feature_downloader(file_path, segment_duration=2):
     segments_f0 = []
 
     max_length = 0
-    for s in range(num_segments):
 
-        # Start the matlab engine
-        eng = matlab.engine.start_matlab()
+    try:
 
-        # Start loading the toolboxes
-        # Adding the related paths
-        eng.addpath(MATLAB_ROOT, nargout=0)
-        eng.addpath(VOICE_BOX, nargout=0)
-        eng.addpath(VOICE_ANALYSIS_TOOLBOX, nargout=0)
-        eng.addpath(DFA, nargout=0)
-        eng.addpath(EMD, nargout=0)
-        eng.addpath(RPDE, nargout=0)
-        eng.addpath(SHRP, nargout=0)
+        for s in range(num_segments):
 
-        # Calculate the sample start point
-        start_sample = number_of_samples_per_segment * s
-        # Calculate the sample finish point
-        finish_sample = start_sample + number_of_samples_per_segment
+            # Start the matlab engine
+            eng = matlab.engine.start_matlab()
 
-        sample = signal[start_sample:finish_sample]
+            # Start loading the toolboxes
+            # Adding the related paths
+            eng.addpath(MATLAB_ROOT, nargout=0)
+            eng.addpath(VOICE_BOX, nargout=0)
+            eng.addpath(VOICE_ANALYSIS_TOOLBOX, nargout=0)
+            eng.addpath(DFA, nargout=0)
+            eng.addpath(EMD, nargout=0)
+            eng.addpath(RPDE, nargout=0)
+            eng.addpath(SHRP, nargout=0)
 
-        temp_segment_path = os.path.join(MEDIA_ROOT, "temp_segment.wav")
+            # Calculate the sample start point
+            start_sample = number_of_samples_per_segment * s
+            # Calculate the sample finish point
+            finish_sample = start_sample + number_of_samples_per_segment
 
-        sf.write(temp_segment_path, sample, fs)
+            sample = signal[start_sample:finish_sample]
 
-        # Break the for loop if the last sample length is smaller than the rest.
-        if max_length != 0:
-            if len(sample) < max_length:
-                break
+            time.sleep(2)
+            temp_segment_path = os.path.join(MEDIA_ROOT, "temp_segment.wav")
+
+            sf.write(temp_segment_path, sample, fs)
+
+            # Break the for loop if the last sample length is smaller than the rest.
+            if max_length != 0:
+                if len(sample) < max_length:
+                    break
+                else:
+                    max_length = len(sample)
             else:
                 max_length = len(sample)
-        else:
-            max_length = len(sample)
 
-        # Extract the features from matlab toolbox
-        feature_vector_values, feature_vector_names, f0 = eng.voice_analysis(temp_segment_path,
-                                                                             nargout=3)
+            # Extract the features from matlab toolbox
+            feature_vector_values, feature_vector_names, f0 = eng.voice_analysis(temp_segment_path,
+                                                                                 nargout=3)
 
-        feature_vector_values = np.array(feature_vector_values).flatten()
-        f0 = np.array(f0).flatten()
+            feature_vector_values = np.array(feature_vector_values).flatten()
+            f0 = np.array(f0).flatten()
 
-        segment_feature_name = feature_vector_names
-        segments_feature.append(feature_vector_values)
-        segments_f0.append(f0)
+            segment_feature_name = feature_vector_names
+            segments_feature.append(feature_vector_values)
+            segments_f0.append(f0)
 
-        # Remove the file
-        os.remove(temp_segment_path)
+            # Remove the file
+            os.remove(temp_segment_path)
 
-        # Store the extracted data in the target folder
+            # Store the extracted data in the target folder
 
-        # Close the matlab engine
-        eng.exit()
+            # Close the matlab engine
+            eng.exit()
 
-    return segment_feature_name, segments_feature, segments_f0
+        return np.array(segment_feature_name), np.array(segments_feature), np.array(segments_f0)
+
+    except IOError as ex:
+        print(f"IOError: {str(ex)}")
+        return None, None, None
