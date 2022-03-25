@@ -3,6 +3,7 @@ from utils import voice_feature_extractor
 import os
 import pandas as pd
 
+
 class VoiceDataLoader(DataLoader):
     """ Load the Tapping data based on the Query """
 
@@ -33,6 +34,12 @@ class VoiceDataLoader(DataLoader):
         # Read the data of the unique healthCodes to the DataFrame
         health_code_df = pd.read_csv(file_path)
 
+        # Create a directory for holding the audio feature extracted
+        voice_feature_folder_path = os.path.join(self.ROOT_PATH, "voice_features")
+
+        if not os.path.isdir(voice_feature_folder_path):
+            os.mkdir(voice_feature_folder_path)
+
         # Iterate in healthCode records
         for _, health_code in health_code_df.iterrows():
 
@@ -56,11 +63,26 @@ class VoiceDataLoader(DataLoader):
                 if os.path.isfile(voice_file_path):
                     # Extract the features
                     print(f"Extracting features for {row['audio_audio.m4a']}")
-                    segment_feature_name, segments_feature, segments_f0 = voice_feature_extractor.matlab_base_feature_downloader(voice_file_path)
+                    segment_feature_name, segments_feature, segments_f0 = voice_feature_extractor \
+                        .matlab_base_feature_downloader(voice_file_path)
+
+                    # Create a folder for storing the voice features for a target file
+                    features_folder = os.path.join(voice_feature_folder_path, row['audio_audio.m4a'])
+
+                    if not os.path.isdir(features_folder):
+                        os.mkdir(features_folder)
+
+                    # Iterate in extracted features
+                    for index, row in enumerate(segments_feature):
+                        segment_feature_file_path = os.path.join(features_folder,
+                                                                 f"{row['audio_audio.m4a']}_s_f_{index}.npz")
+                        f0_feature_file_path = os.path.join(features_folder,
+                                                            f"{row['audio_audio.m4a']}_s_f_f0{index}.npz")
+
+
                     # TODO Create folder for each file with the name of the file.
                     # TODO Store the extracted features in seperated npz file.
                 else:
                     # Show alert that the file is not in the pre-processed data
                     print("The file removed in pre-process phase. We are deleting the countdown recording as well.")
         raise NotImplemented("This function has not been implemented yet")
-
