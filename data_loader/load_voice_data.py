@@ -6,6 +6,7 @@ from data_loader.data_loader import DataLoader
 from utils import voice_feature_extractor
 import os
 import pandas as pd
+import gc
 
 
 class VoiceDataLoader(DataLoader):
@@ -113,6 +114,8 @@ class VoiceDataLoader(DataLoader):
                         # Add the folder to list of the files features extracted for them
                         voice_feature_list.append(str(row['audio_audio.m4a']))
 
+                        gc.collect()
+
                     else:
                         # Print a message notifiying the features already extracted.
                         print("The features already extracted for this file.")
@@ -121,7 +124,10 @@ class VoiceDataLoader(DataLoader):
                     # Show alert that the file is not in the pre-processed data
                     print("The file removed in pre-process phase. We are deleting the countdown recording as well.")
                     # Remove the audio_countdown file.
-                    os.remove(os.path.join(self.VOICE_DATA_PATH, f"{row['audio_countdown.m4a']}.m4a"))
+                    try:
+                        os.remove(os.path.join(self.VOICE_DATA_PATH, f"{row['audio_countdown.m4a']}.m4a"))
+                    except IOError as ex:
+                        print(f"The file already deleted. Here is the error: {str(ex)}")
 
                 feature_file_data_holder.append([health_code,
                                                  row['audio_audio.m4a'],

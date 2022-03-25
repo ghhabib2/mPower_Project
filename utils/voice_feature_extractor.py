@@ -5,6 +5,7 @@ import matlab.engine
 import soundfile as sf
 import librosa
 import time
+import gc
 
 BASE_DIR = os.getcwd()
 MATLAB_ROOT = os.path.join(BASE_DIR, "matlab_root")
@@ -79,7 +80,6 @@ def matlab_base_feature_downloader(file_path, segment_duration=2):
 
             sample = signal[start_sample:finish_sample]
 
-            time.sleep(2)
             temp_segment_path = os.path.join(MEDIA_ROOT, "temp_segment.wav")
 
             sf.write(temp_segment_path, sample, fs)
@@ -111,9 +111,12 @@ def matlab_base_feature_downloader(file_path, segment_duration=2):
 
             # Close the matlab engine
             eng.exit()
+            time.sleep(5)
+            gc.collect()
+
 
         return np.array(segment_feature_name), np.array(segments_feature), np.array(segments_f0)
 
-    except IOError as ex:
-        print(f"IOError: {str(ex)}")
+    except Exception as ex:
+        print(f"SystemError: {str(ex)}")
         return None, None, None
