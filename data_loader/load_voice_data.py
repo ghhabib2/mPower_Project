@@ -49,6 +49,7 @@ class VoiceDataLoader(DataLoader):
 
         feature_file_data_holder = []
 
+        record_counter = 0
         # Iterate in healthCode records
         for _, health_code in health_code_df.iterrows():
 
@@ -66,6 +67,7 @@ class VoiceDataLoader(DataLoader):
 
             # Iterate in the list of the records
             for _, row in temp_voice_df.iterrows():
+                record_counter +=1
                 # Read the name fo the file
                 voice_file_path = os.path.join(self.VOICE_DATA_PATH, f"{row['audio_audio.m4a']}.m4a")
                 # Check if the file exists
@@ -76,7 +78,7 @@ class VoiceDataLoader(DataLoader):
                         # The feature is not in the list. Extract the features
 
                         # Extract the features
-                        print(f"Extracting features for {row['audio_audio.m4a']}")
+                        print(f"{record_counter}- Extracting features for {row['audio_audio.m4a']}")
                         segment_feature_name, segments_feature, segments_f0 = voice_feature_extractor \
                             .matlab_base_feature_downloader(voice_file_path)
 
@@ -118,7 +120,7 @@ class VoiceDataLoader(DataLoader):
 
                     else:
                         # Print a message notifiying the features already extracted.
-                        print("The features already extracted for this file.")
+                        print(f"{record_counter}- The features already extracted for this file.")
 
                 else:
                     # Show alert that the file is not in the pre-processed data
