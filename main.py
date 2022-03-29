@@ -18,7 +18,7 @@ def data_loader():
     data_loader_object.feature_extractor()
 
     # Print the number of data records
-    print(f"Number of unique healthCode in the data set is: {data_loader_object.unique_data_record_number}")
+    # print(f"Number of unique healthCode in the data set is: {data_loader_object.unique_data_record_number}")
 
     # TODO Adding the query to get the number of records for all available data
     # TODO Loading the Data based on the files that to be loaded.

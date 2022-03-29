@@ -131,7 +131,7 @@ class VoiceDataLoader(DataLoader):
                     except IOError as ex:
                         print(f"The file already deleted. Here is the error: {str(ex)}")
 
-                feature_file_data_holder.append([health_code,
+                feature_file_data_holder.append([row['healthCode'],
                                                  row['audio_audio.m4a'],
                                                  row["medTimepoint"],
                                                  row['createdOn']])
