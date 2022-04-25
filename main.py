@@ -4,7 +4,8 @@ from utils import signal_plot
 import os
 import numpy as np
 
-ROOT_PATH = os.path.join(os.getcwd(), "collected_data")
+user_home_path = user_path = os.path.expanduser("~")
+ROOT_PATH = os.path.join(user_home_path, "collected_data_mpower")
 
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
@@ -15,18 +16,14 @@ def data_loader():
         username='ghaffh1@mcmaster.ca',
         password='As@hn6162')
 
-    data_loader_object.feature_extractor()
+    # Add the csv file path for the files to be loaded
+    voice_data_csv_file_path = os.path.join(user_home_path,"voice_data_csv.csv")
+    data_frame = data_loader_object.load_data()
+
+    data_frame.to_csv(voice_data_csv_file_path)
 
     # Print the number of data records
     # print(f"Number of unique healthCode in the data set is: {data_loader_object.unique_data_record_number}")
-
-    # TODO Adding the query to get the number of records for all available data
-    # TODO Loading the Data based on the files that to be loaded.
-    # TODO Extract features from the files.
-    # TODO Do simple feature fusion to creat the feature vector.
-    # TODO normalize the features.
-    # TODO Do outlier detection.
-    # TODO Try different clustering algorithms.
 
 def plotter():
     balance_file_path = os.path.join(ROOT_PATH,"data_moition_signal_sample.csv")

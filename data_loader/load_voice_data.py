@@ -12,13 +12,21 @@ import gc
 class VoiceDataLoader(DataLoader):
     """ Load the Tapping data based on the Query """
 
-    def load_data(self, limit):
-        # Query mPoser Project
-        table = self.syn.tableQuery(f"""
-        SELECT  *
-        FROM syn5511444
-        LIMIT {limit}
-        """)
+    def load_data(self, limit=None):
+
+        if limit is None:
+            # Query mPoser Project without limitation
+            table = self.syn.tableQuery(f"""
+                    SELECT  *
+                    FROM syn5511444
+                    """)
+        else:
+            # Query mPoser Project with limitation
+            table = self.syn.tableQuery(f"""
+            SELECT  *
+            FROM syn5511444
+            LIMIT {limit}
+            """)
 
         # Convert to the DataFrame
         df = table.asDataFrame()

@@ -46,7 +46,7 @@ class DataLoader(object):
                                   )
 
     @abc.abstractmethod
-    def load_data(self, limit):
+    def load_data(self, limit=None):
         """
         Load data as a DataFrame include all the information downloaded from the synapse dataset
 
