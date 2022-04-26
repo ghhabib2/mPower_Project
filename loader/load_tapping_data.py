@@ -1,4 +1,4 @@
-from data_loader.data_loader import DataLoader
+from loader import DataLoader
 
 
 class TappingDataLoader(DataLoader):

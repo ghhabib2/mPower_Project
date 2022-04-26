@@ -1,6 +1,6 @@
 import pandas as pd
 
-from data_loader.data_loader import DataLoader
+from loader import DataLoader
 # Import OS for IO
 import os
 from shutil import copyfile

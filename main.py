@@ -1,4 +1,4 @@
-from data_loader import VoiceDataLoader
+from loader import VoiceDataLoader
 from downloader import VoiceDownloader
 from featureExtraction import balanceHelper, gaitHelpers, tappingHelpers, memoryHelpers
 from utils import signal_plot
@@ -12,7 +12,7 @@ ROOT_PATH = os.path.join(user_home_path, "Documents/collected_data_mpower")
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 
-def data_loader():
+def data_downloader():
     # Get an object of Typing Data loader for loading Tapping data
     data_loader_object = VoiceDownloader(
         username='ghaffh1@mcmaster.ca',
@@ -28,6 +28,25 @@ def data_loader():
         print("There is a problem in downloading the data. Check the exception.")
 
     # data_frame.to_csv(voice_data_csv_file_path)
+
+    # Print the number of data records
+    # print(f"Number of unique healthCode in the data set is: {data_loader_object.unique_data_record_number}")
+
+
+def data_loader():
+    # Get an object of Typing Data loader for loading Tapping data
+    data_loader_object = VoiceDataLoader(
+        username='ghaffh1@mcmaster.ca',
+        password='As@hn6162')
+
+    # Add the csv file path for the files to be loaded
+    voice_data_csv_file_path = os.path.join(ROOT_PATH, "voice_data_csv.csv")
+
+    data_frame = data_loader_object.load_data(limit=2500)
+
+    data_frame.to_csv(voice_data_csv_file_path)
+
+    print("Data has been stored as CSV file")
 
     # Print the number of data records
     # print(f"Number of unique healthCode in the data set is: {data_loader_object.unique_data_record_number}")
@@ -57,7 +76,7 @@ def plotter():
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    data_loader()
+    data_downloader()
     # balanceHelper.tested_jason()
     #  tappingHelpers.tested_jason()
     # memoryHelpers.tested_jason()

@@ -2,7 +2,7 @@ import csv
 
 import numpy as np
 
-from data_loader.data_loader import DataLoader
+from loader import DataLoader
 from utils import voice_feature_extractor
 import os
 import pandas as pd
@@ -13,25 +13,41 @@ class VoiceDataLoader(DataLoader):
     """ Load the Tapping data based on the Query """
 
     def load_data(self, limit=None):
+        labels = ["take Parkinson medications",
+                  "Immediately before Parkinson medication",
+                  "Just after Parkinson medication (at your best)",
+                  "Another time"]
+        # Initiate the output DataFrame as a None varialbe
+        df = None
 
-        if limit is None:
-            # Query mPoser Project without limitation
-            table = self.syn.tableQuery(f"""
-                    SELECT  *
-                    FROM syn5511444
-                    """)
-        else:
-            # Query mPoser Project with limitation
-            table = self.syn.tableQuery(f"""
-            SELECT  *
-            FROM syn5511444
-            LIMIT {limit}
-            """)
-
-        # Convert to the DataFrame
+        table = self.syn.tableQuery("SELECT  * FROM syn5511444")
+        # Check if the output DataFrame is empty
         df = table.asDataFrame()
 
-        return df
+        # Set the Labels
+        for index, row in df.iterrows():
+            if row['medTimepoint'] == "I don't take Parkinson medications":
+                df.at[index, 'medTimepoint'] = 0
+            elif row['medTimepoint'] == "Immediately before Parkinson medication":
+                df.at[index, 'medTimepoint'] = 1
+            elif row['medTimepoint'] == "Just after Parkinson medication (at your best)":
+                df.at[index, 'medTimepoint'] = 2
+            elif row['medTimepoint'] == "Another time":
+                df.at[index, 'medTimepoint'] = 3
+
+        # Return the final result
+        if limit is None:
+            return df
+        else:
+            # Label is equal to 0
+            output_df = df[df['medTimepoint'] == 0].head(limit)
+            # Label is equal to 1
+            output_df = pd.concat([output_df, df[df['medTimepoint'] == 1].head(limit)])
+            # Label is equal to 2
+            output_df = pd.concat([output_df, df[df['medTimepoint'] == 2].head(limit)])
+            # Label is equal to 3
+            output_df = pd.concat([output_df, df[df['medTimepoint'] == 3].head(limit)])
+            return output_df
 
     def feature_extractor(self):
         """
