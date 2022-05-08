@@ -21,8 +21,9 @@ def data_downloader():
     # Add the csv file path for the files to be loaded
     voice_data_csv_file_path = os.path.join(ROOT_PATH, "voice_data_csv.csv")
 
-    if data_loader_object.audio_countdown_downloader(csv_file_path="voice_data_csv.csv",
-                                                     path="count_down_voices"):
+    if data_loader_object.audio_downloader(csv_file_path="voice_data_csv.csv",
+                                           path="voices",
+                                           count_down_path="count_down_voices"):
         print("Data downloaded Successfully.")
     else:
         print("There is a problem in downloading the data. Check the exception.")
