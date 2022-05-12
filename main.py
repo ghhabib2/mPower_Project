@@ -41,13 +41,15 @@ def data_loader():
         password='As@hn6162')
 
     # Add the csv file path for the files to be loaded
-    voice_data_csv_file_path = os.path.join(ROOT_PATH, "voice_data_csv.csv")
+    # voice_data_csv_file_path = os.path.join(ROOT_PATH, "voice_data_csv.csv")
 
-    data_frame = data_loader_object.load_data(limit=2500)
+    data_loader_object.voice_feature_extractor_praa(data_file_path="voice_data_csv.csv",
+                                                    data_folder_path="voice_feature_data_no_limit_prra",
+                                                    voice_folder_path="voices")
 
-    data_frame.to_csv(voice_data_csv_file_path)
+    # data_frame.to_csv(voice_data_csv_file_path)
 
-    print("Data has been stored as CSV file")
+    print("Done!!")
 
     # Print the number of data records
     # print(f"Number of unique healthCode in the data set is: {data_loader_object.unique_data_record_number}")
@@ -77,7 +79,8 @@ def plotter():
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    data_downloader()
+    # data_downloader()
+    data_loader()
     # balanceHelper.tested_jason()
     #  tappingHelpers.tested_jason()
     # memoryHelpers.tested_jason()

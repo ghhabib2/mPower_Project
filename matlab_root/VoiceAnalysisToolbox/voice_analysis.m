@@ -100,6 +100,8 @@ function [measures_vector, measures_names, F0] = voice_analysis(data, fs, f0_alg
 %% Parameter initialization
 warning off all
 
+clearvars -global;
+
 addpath(genpath(pwd))
 
 if nargin<3 || isempty(f0_alg)
