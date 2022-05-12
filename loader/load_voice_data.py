@@ -200,6 +200,9 @@ class VoiceDataLoader(DataLoader):
                 segments_feature = voice_feature_extractor.praa_base_feature_downloader(voice_file_path,
                                                                                         segment_duration=1)
 
+                if segments_feature is None:
+                    print(f"Features not extracted Proeprly. Data record {row['audio_audio.m4a']} has been removed.")
+                    continue
 
                 # Create a folder for storing the voice features for a target file
                 features_folder = os.path.join(directory_path, str(row['audio_audio.m4a']))
