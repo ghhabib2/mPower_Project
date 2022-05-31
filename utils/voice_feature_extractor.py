@@ -143,30 +143,30 @@ def praa_base_feature_downloader(file_path, segment_duration=2):
     :rtype: np.ndarray
     """
 
-    signal, fs = librosa.load(file_path, 16000)
-
-    signal = np.array(signal, dtype=np.float64)
-
-    # Get the duration of the audio file.
-    duration = librosa.get_duration(signal, sr=fs)
-
-    # Calculate the sample per track value
-    sample_per_track = duration * fs
-    # Calculate the number of sample segments with 5 seconds of segment duration
-    number_of_samples_per_segment = segment_duration * fs
-    # Calculate the number of possible segments for the file
-    num_segments = int(sample_per_track // number_of_samples_per_segment)
-
-    # Extract the features for each segment
-    # set temp length in order to keep the safe file length
-    # max_length = 0
-    segments_feature = []
-    segment_feature_name = []
-    segments_f0 = []
-
-    max_length = 0
-
     try:
+
+        signal, fs = librosa.load(file_path, 16000)
+
+        signal = np.array(signal, dtype=np.float64)
+
+        # Get the duration of the audio file.
+        duration = librosa.get_duration(signal, sr=fs)
+
+        # Calculate the sample per track value
+        sample_per_track = duration * fs
+        # Calculate the number of sample segments with 5 seconds of segment duration
+        number_of_samples_per_segment = segment_duration * fs
+        # Calculate the number of possible segments for the file
+        num_segments = int(sample_per_track // number_of_samples_per_segment)
+
+        # Extract the features for each segment
+        # set temp length in order to keep the safe file length
+        # max_length = 0
+        segments_feature = []
+        segment_feature_name = []
+        segments_f0 = []
+
+        max_length = 0
 
         for s in range(num_segments):
 
