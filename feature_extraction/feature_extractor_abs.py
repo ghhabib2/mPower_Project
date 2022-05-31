@@ -20,7 +20,7 @@ class FeatureExtractor(object):
         self.TO_STORE_PATH = os.path.join(self.ROOT_PATH,to_store_dir_path)
 
     @abc.abstractmethod
-    def loader(self, file_path):
+    def _loader(self, file_path):
         """
         Function Loader is responsible for loading a file
 
@@ -44,7 +44,7 @@ class FeatureExtractor(object):
         raise NotImplemented("This method has not implemented yet.")
 
     @abc.abstractmethod
-    def save_feature(self, feature, file_path):
+    def _save_feature(self, feature, file_path):
         """
         Save the feature based on the file path
         """

@@ -1,6 +1,7 @@
 from loader import VoiceDataLoader
 from downloader import VoiceDownloader
-from featureExtraction import balanceHelper, gaitHelpers, tappingHelpers, memoryHelpers
+# from featureExtraction import balanceHelper, gaitHelpers, tappingHelpers, memoryHelpers
+from feature_extraction import SpectrogramExtractor
 from utils import signal_plot
 import os
 import numpy as np
@@ -17,7 +18,7 @@ def data_downloader():
     data_loader_object = VoiceDownloader(
         username='ghaffh1@mcmaster.ca',
         password='As@hn6162')
-      
+
     # Add the csv file path for the files to be loaded
     voice_data_csv_file_path = os.path.join(ROOT_PATH, "voice_data_csv.csv")
 
@@ -36,16 +37,21 @@ def data_downloader():
 
 def data_loader():
     # Get an object of Typing Data loader for loading Tapping data
-    data_loader_object = VoiceDataLoader(
-        username='ghaffh1@mcmaster.ca',
-        password='As@hn6162')
+    # data_loader_object = VoiceDataLoader(
+    #     username='ghaffh1@mcmaster.ca',
+    #     password='As@hn6162')
 
     # Add the csv file path for the files to be loaded
     # voice_data_csv_file_path = os.path.join(ROOT_PATH, "voice_data_csv.csv")
 
-    data_loader_object.voice_feature_extractor_praa(data_file_path="voice_data_csv.csv",
-                                                    data_folder_path="voice_feature_data_no_limit_prra",
-                                                    voice_folder_path="voices")
+    # Define the project
+    SpectrogramExtractor(to_read_dir_path="voices",
+                         to_store_dir_path="spect_voices",
+                         dataset_csv_file="voice_data_csv.csv").process()
+
+    # data_loader_object.voice_feature_extractor_praa(data_file_path="voice_data_csv.csv",
+    #                                                 data_folder_path="voice_feature_data_no_limit_prra",
+    #                                                 voice_folder_path="voices")
 
     # data_frame.to_csv(voice_data_csv_file_path)
 

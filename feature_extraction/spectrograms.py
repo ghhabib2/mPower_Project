@@ -17,12 +17,6 @@ from feature_extraction import FeatureExtractor
 import librosa
 import numpy as np
 
-FRAME_SIZE = 512
-HOP_LENGTH = 256
-DURATION = 0.74  # in seconds
-SAMPLE_RATE = 22050
-MONO = True
-
 
 class Padder:
     """Padder is responsible to apply padding to an array."""
@@ -80,7 +74,6 @@ class MinMaxNormaliser:
         return array
 
 
-
 class SpectrogramExtractor(FeatureExtractor):
     """PreprocessingPipeline processes audio files in a directory, applying
     the following steps to each file:
@@ -95,16 +88,16 @@ class SpectrogramExtractor(FeatureExtractor):
 
     def __init__(self, to_read_dir_path,
                  to_store_dir_path,
-                 sample_rate,
                  dataset_csv_file,
-                 frame_size= 512,
-                 hope_length = 256,
-                 duration=1,
+                 sample_rate=22050,
+                 frame_size=512,
+                 hope_length=256,
+                 segment_duration=1,
                  mono=True):
         """ Extract Spectrogram Features
 
         :param (int) sample_rate: Sample Rate
-        :param (int) duration: Duration of each feature sample
+        :param (int) segment_duration: Duration of each feature sample
         :param (bool) mono: Flag check if the audio file should be loaded in Mono mode or in Stereo Mode.
         :param (int) frame_size : Frame size
         :param (int) hope_length : Hope length
@@ -119,25 +112,24 @@ class SpectrogramExtractor(FeatureExtractor):
         self.min_max_values = {}
         self._num_expected_samples = None
         self.sample_rate = sample_rate
-        self.duration = duration
+        self.segment_duration = segment_duration
         self.mono = mono
         self.dataset_csv_file = dataset_csv_file
         self.frame_size = frame_size
         self.hope_length = hope_length
 
     # Define the loader
-    def loader(self, file_path):
-        signal = librosa.load(file_path,
-                              sr=self.sample_rate,
-                              duration=self.duration,
-                              mono=self.mono)
+    def _loader(self, file_path):
+        signal, _ = librosa.load(file_path,
+                                 sr=self.sample_rate,
+                                 mono=self.mono)
         return signal
 
     def process(self):
 
         # Check if the csv file exists
-        if len(self.dataset_csv_file) >0:
-            csv_file_path = os.path.join(self.TO_READ_PATH,self.dataset_csv_file)
+        if len(self.dataset_csv_file) > 0:
+            csv_file_path = os.path.join(self.TO_READ_PATH, self.dataset_csv_file)
         else:
             raise IOError("You need to path the `dataset_csv_file` value.")
 
@@ -149,16 +141,26 @@ class SpectrogramExtractor(FeatureExtractor):
         i = 1
         row_collection = []
         for _, row in voices_dataset.iterrows():
-            print(f"{i}- Extracting features for {row['audio_audio']}")
+            print(f"{i}- Extracting features for {row['audio_audio.m4a']}")
 
             # Generate the path for the file
-            audio_file_path = os.path.join(self.TO_READ_PATH, f"{row['audio_audio']}.m4a")
-            # Process file and generate the feature vectors
-            self._process_file(file_name=row["audio_audio"],
-                               file_path= audio_file_path,
-                               store_path=self.TO_STORE_PATH)
+            audio_file_path = os.path.join(self.TO_READ_PATH, f"{row['audio_audio.m4a']}.m4a")
 
-            print(f"Features for {row['audio_audio']} has been extracted.")
+            # Check if the file exists in the folder
+            if not os.path.exists(audio_file_path):
+                print("The file deleted due to noise presentation!!. Feature extraction failed")
+                continue
+
+            # Process file and generate the feature vectors
+            try:
+                self._process_file(file_name=row["audio_audio.m4a"],
+                                   file_path=audio_file_path,
+                                   store_path=self.TO_STORE_PATH)
+            except Exception as ex:
+                print(f"The process of feature extraction failed for this file for the following reason:\n\n{str(ex)}")
+                continue
+
+            print(f"Features for {row['audio_audio.m4a']} has been extracted.")
 
             # Add the row to the list of the row collections
             row_collection.append([row['healthCode'],
@@ -179,7 +181,11 @@ class SpectrogramExtractor(FeatureExtractor):
 
         extracted_features_file_path = os.path.join(self.TO_STORE_PATH, "extracted_features_csv.csv")
 
+        print("Storing the data into csv dataset")
+
         temp_dataset_df.to_csv(extracted_features_file_path, index=False)
+
+        print("Feature extraction process has been finished.")
 
     def _process_file(self, file_name, file_path, store_path):
         """
@@ -192,7 +198,7 @@ class SpectrogramExtractor(FeatureExtractor):
         :rtype: None
         """
         # Load the target signal
-        signal = self.loader(file_path)
+        signal = self._loader(file_path)
 
         # Calculate the file  duration
         signal_duration = librosa.get_duration(y=signal, sr=self.sample_rate)
@@ -201,13 +207,13 @@ class SpectrogramExtractor(FeatureExtractor):
         sample_per_track = signal_duration * self.sample_rate
 
         # Calculate the number of samples per segment
-        number_of_samples_per_segment = self.duration * self.sample_rate
+        num_expected_samples = self.segment_duration * self.sample_rate
 
         # Calculate the number of segments
-        num_segments = int(sample_per_track // number_of_samples_per_segment)
+        num_segments = int(sample_per_track // num_expected_samples)
 
         # Check if any folder with the name of the file exists in the store folder
-        file_directory_path = os.path.join(store_path, file_name)
+        file_directory_path = os.path.join(store_path, str(file_name))
 
         if not os.path.isdir(file_directory_path):
             # Create directory
@@ -217,30 +223,30 @@ class SpectrogramExtractor(FeatureExtractor):
         for s in range(num_segments):
 
             # Separate the segment
-            start_sample = number_of_samples_per_segment * s
-            finish_sample = start_sample * number_of_samples_per_segment
+            start_sample = num_expected_samples * s
+            finish_sample = start_sample + num_expected_samples
             sample_per_track = signal[start_sample:finish_sample]
 
             # Check if the padding is necessary to be added
-            if self._is_padding_necessary(sample_per_track):
+            if self._is_padding_necessary(sample_per_track, num_expected_samples=num_expected_samples):
                 # Add the padding to the signal
                 signal = self._apply_padding(sample_per_track)
 
             # Extract the features
             feature = LogSpectrogramExtractor(self.frame_size, self.hope_length).extract(signal)
-            norm_feature = self.normaliser.normalise(feature)
+            norm_feature = MinMaxNormaliser(0, 1).normalise(feature)
 
             # Generate file path
             save_file_path = os.path.join(file_directory_path, f"{file_name}_{i}.npy")
             # Save the feature vector
-            self.saver.save_feature(norm_feature, file_path)
+            self._save_feature(norm_feature, save_file_path)
             # Generate the file path for storing max and min values
             save_file_path = os.path.join(file_directory_path, f"{file_name}_{i}.pkl")
-            self.save_min_max_values(save_file_path, feature.min(), feature.max())
+            self._save_min_max_values(save_file_path, feature.min(), feature.max())
 
             i += 1
 
-    def save_feature(self, feature, file_path):
+    def _save_feature(self, feature, file_path):
         """
         Save the feature based on the file path
 
@@ -251,7 +257,7 @@ class SpectrogramExtractor(FeatureExtractor):
         """
         np.save(file_path, feature)
 
-    def save_min_max_values(self, file_path, min_val, max_val):
+    def _save_min_max_values(self, file_path, min_val, max_val):
         """
         Save the min-max value
 
@@ -279,16 +285,16 @@ class SpectrogramExtractor(FeatureExtractor):
         with open(save_path, "wb") as f:
             pickle.dump(data, f)
 
-
-    def _is_padding_necessary(self, signal):
+    def _is_padding_necessary(self, signal, num_expected_samples):
         """
         Identify if the padding necessary for the signal based on the expected number of samples.
 
         :param (np.ndarray) signal: Target Signal
+        :param (int) num_expected_samples : Number of expected samples
         :return: True if it is necessary to add padding and false if it is not.
         :rtype: bool
         """
-        if len(signal) < self._num_expected_samples:
+        if len(signal) < num_expected_samples:
             return True
         return False
 
@@ -325,6 +331,3 @@ class SpectrogramExtractor(FeatureExtractor):
 #     preprocessing_pipeline.saver = saver
 #
 #     preprocessing_pipeline.process(FILES_DIR)
-
-
-

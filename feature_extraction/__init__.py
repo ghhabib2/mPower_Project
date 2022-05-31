@@ -1,1 +1,2 @@
-from feature_extractor_abs import FeatureExtractor
+from .feature_extractor_abs import FeatureExtractor
+from .spectrograms import SpectrogramExtractor
