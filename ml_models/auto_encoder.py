@@ -127,12 +127,12 @@ class VAE:
         return reconstructed_images, latent_representations
 
     @classmethod
-    def load(cls, save_folder="."):
-        parameters_path = os.path.join(save_folder, "parameters.pkl")
+    def load(cls, weights_path, parameters_path):
+
         with open(parameters_path, "rb") as f:
             parameters = pickle.load(f)
         autoencoder = VAE(*parameters)
-        weights_path = os.path.join(save_folder, "weights.h5")
+
         autoencoder.load_weights(weights_path)
         return autoencoder
 
@@ -158,12 +158,15 @@ class VAE:
             os.makedirs(folder)
 
     def _save_parameters(self, save_folder):
+
         parameters = [
             self.input_shape,
             self.conv_filters,
             self.conv_kernels,
             self.conv_strides,
-            self.latent_space_dim
+            self.latent_space_dim,
+            "",
+            self.reconstruction_loss_weight
         ]
         save_path = os.path.join(save_folder, f"parameters_{time.strftime('%Y%m%d-%H%M%S')}.pkl")
         with open(save_path, "wb") as f:

@@ -7,6 +7,7 @@ from ml_models import VAE
 from model_trainers import ModelTrainer
 import time
 
+
 class VAETrainer(ModelTrainer):
     def __init__(self, to_read_dir_path
                  , to_store_dir_path

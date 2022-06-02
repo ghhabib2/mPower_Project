@@ -17,7 +17,7 @@ class FeatureExtractor(object):
         # Keep the path for root folder of the data`
         self.ROOT_PATH = os.path.join(user_home_path, "Documents/collected_data_mpower")
         self.TO_READ_PATH = os.path.join(self.ROOT_PATH, to_read_dir_path)
-        self.TO_STORE_PATH = os.path.join(self.ROOT_PATH,to_store_dir_path)
+        self.TO_STORE_PATH = os.path.join(self.ROOT_PATH, to_store_dir_path)
 
     @abc.abstractmethod
     def _loader(self, file_path):
@@ -40,6 +40,8 @@ class FeatureExtractor(object):
         :rtype: None
         :raises IOError, OSError, RuntimeError:
         """
+
+
 
         raise NotImplemented("This method has not implemented yet.")
 
