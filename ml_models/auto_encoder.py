@@ -4,14 +4,18 @@ import pickle
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, Conv2D, ReLU, BatchNormalization, \
     Flatten, Dense, Reshape, Conv2DTranspose, Activation, Lambda
+from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
 from tensorflow.keras import backend as K
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import MeanSquaredError
 import numpy as np
 import tensorflow as tf
-
+import time
 
 tf.compat.v1.disable_eager_execution()
+
+# Root of the system
+user_home_path = user_path = os.path.expanduser("~")
 
 
 class VAE:
@@ -25,14 +29,30 @@ class VAE:
                  conv_filters,
                  conv_kernels,
                  conv_strides,
-                 latent_space_dim):
-        self.input_shape = input_shape # [28, 28, 1]
-        self.conv_filters = conv_filters # [2, 4, 8]
-        self.conv_kernels = conv_kernels # [3, 5, 3]
-        self.conv_strides = conv_strides # [1, 2, 2]
-        self.latent_space_dim = latent_space_dim # 2
-        self.reconstruction_loss_weight = 1000
+                 latent_space_dim,
+                 keep_csv_log_dir,
+                 reconstruction_loss_weight=1000):
 
+        """
+
+        :param (tuple) input_shape: Input shape of input vectors
+        :param (tuple) conv_filters: Convolutional layers number and dimension
+        :param (tuple) conv_kernels: Kernel of the convolution layers
+        :param (tuple) conv_strides: stride of each convolution layer
+        :param (int) latent_space_dim: Latent space dimension
+        :param (str) keep_csv_log_dir: Directory for storing the log files
+        :param (int) reconstruction_loss_weight: The reconstruction loss weight
+        """
+
+        self._ROOT_PATH = os.path.join(user_home_path, "Documents/collected_data_mpower")
+
+        self.input_shape = input_shape  # [28, 28, 1]
+        self.conv_filters = conv_filters  # [2, 4, 8]
+        self.conv_kernels = conv_kernels  # [3, 5, 3]
+        self.conv_strides = conv_strides  # [1, 2, 2]
+        self.latent_space_dim = latent_space_dim  # 2
+        self.reconstruction_loss_weight = reconstruction_loss_weight
+        self.keep_csv_log_dir = os.path.join(self._ROOT_PATH, keep_csv_log_dir)
         self.encoder = None
         self.decoder = None
         self.model = None
@@ -56,19 +76,50 @@ class VAE:
                                     self._calculate_kl_loss])
 
     def train(self, x_train, batch_size, num_epochs):
+        call_backs = []
+        if self.latent_space_dim:
+            # Check if the directory exists
+
+            if not os.path.isdir(self.keep_csv_log_dir):
+                os.mkdir(self.keep_csv_log_dir)
+            # Add the necessary information for storing the training log
+            csv_logger_callback = CSVLogger(os.path.join(self.keep_csv_log_dir,
+                                                         f"log_{time.strftime('%Y%m%d-%H%M%S')}.csv"))
+            call_backs.append(csv_logger_callback)
         self.model.fit(x_train,
                        x_train,
                        batch_size=batch_size,
+                       callbacks=call_backs,
                        epochs=num_epochs,
                        shuffle=True)
 
-    def save(self, save_folder="."):
-        self._create_folder_if_it_doesnt_exist(save_folder)
-        self._save_parameters(save_folder)
-        self._save_weights(save_folder)
+    def save(self):
+        # generate the model directory name
+        model_dir_name = f"model_auto_encoder_{time.strftime('%Y%m%d-%H%M%S')}"
+        model_dir_path = os.path.join(self._ROOT_PATH, f"auto_encoder_models/{model_dir_name}")
+        self._create_folder_if_it_doesnt_exist(model_dir_path)
+        self._save_parameters(model_dir_path)
+        self._save_weights(model_dir_path)
 
     def load_weights(self, weights_path):
         self.model.load_weights(weights_path)
+
+    def encode(self, data):
+        """
+        Encode the data and generate the
+        :param data: Data to be encoded
+        :return: Encoded data
+        """
+        return self.encoder.predict(data)
+
+    def decode(self, data):
+        """
+        Decode the data
+
+        :param data: Data to be decoded
+        :return: Reconstructed data
+        """
+        return self.decoder.predict(data)
 
     def reconstruct(self, images):
         latent_representations = self.encoder.predict(images)
@@ -88,8 +139,8 @@ class VAE:
     def _calculate_combined_loss(self, y_target, y_predicted):
         reconstruction_loss = self._calculate_reconstruction_loss(y_target, y_predicted)
         kl_loss = self._calculate_kl_loss(y_target, y_predicted)
-        combined_loss = self.reconstruction_loss_weight * reconstruction_loss\
-                                                         + kl_loss
+        combined_loss = self.reconstruction_loss_weight * reconstruction_loss \
+                        + kl_loss
         return combined_loss
 
     def _calculate_reconstruction_loss(self, y_target, y_predicted):
@@ -114,12 +165,12 @@ class VAE:
             self.conv_strides,
             self.latent_space_dim
         ]
-        save_path = os.path.join(save_folder, "parameters.pkl")
+        save_path = os.path.join(save_folder, f"parameters_{time.strftime('%Y%m%d-%H%M%S')}.pkl")
         with open(save_path, "wb") as f:
             pickle.dump(parameters, f)
 
     def _save_weights(self, save_folder):
-        save_path = os.path.join(save_folder, "weights.h5")
+        save_path = os.path.join(save_folder, f"weights_{time.strftime('%Y%m%d-%H%M%S')}.h5")
         self.model.save_weights(save_path)
 
     def _build(self):
@@ -144,7 +195,7 @@ class VAE:
         return Input(shape=self.latent_space_dim, name="decoder_input")
 
     def _add_dense_layer(self, decoder_input):
-        num_neurons = np.prod(self._shape_before_bottleneck) # [1, 2, 4] -> 8
+        num_neurons = np.prod(self._shape_before_bottleneck)  # [1, 2, 4] -> 8
         dense_layer = Dense(num_neurons, name="decoder_dense")(decoder_input)
         return dense_layer
 
@@ -239,17 +290,3 @@ class VAE:
         x = Lambda(sample_point_from_normal_distribution,
                    name="encoder_output")([self.mu, self.log_variance])
         return x
-
-
-if __name__ == "__main__":
-    autoencoder = VAE(
-        input_shape=(28, 28, 1),
-        conv_filters=(32, 64, 64, 64),
-        conv_kernels=(3, 3, 3, 3),
-        conv_strides=(1, 2, 2, 1),
-        latent_space_dim=2
-    )
-    autoencoder.summary()
-
-
-
