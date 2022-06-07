@@ -50,10 +50,13 @@ class MFCCFeatureExtractor:
         self.is_norm = is_norm
 
     def extract(self, signal):
+
+        s = librosa.feature.melspectrogram(y=signal, sr=self.sr, n_mels=128, fmax=8000)
+
         if self.is_norm:
-            mfcc = librosa.feature.mfcc(y=signal, sr=self.sr, n_mfcc=self.n_mfcc, norm='ortho')
+            mfcc = librosa.feature.mfcc(S=librosa.power_to_db(s), n_mfcc=self.n_mfcc, norm='ortho')
         else:
-            mfcc = librosa.feature.mfcc(y=signal, sr=self.sr, n_mfcc=self.n_mfcc)
+            mfcc = librosa.feature.mfcc(S=librosa.power_to_db(s), n_mfcc=self.n_mfcc)
         return mfcc
 
 
@@ -220,7 +223,7 @@ class MFCCExtractor(FeatureExtractor):
 
         if not os.path.isdir(file_directory_path):
             # Create directory
-            os.mkdir(path=file_directory_path)
+            os.makedirs(file_directory_path)
 
         i = 1
         for s in range(num_segments):
@@ -230,22 +233,25 @@ class MFCCExtractor(FeatureExtractor):
             finish_sample = int(start_sample + num_expected_samples)
             sample_per_track = signal[start_sample:finish_sample]
 
-            # Check if the padding is necessary to be added
-            if self._is_padding_necessary(sample_per_track, num_expected_samples=num_expected_samples):
-                # Add the padding to the signal
-                signal = self._apply_padding(sample_per_track)
+            # # Check if the padding is necessary to be added
+            # if self._is_padding_necessary(sample_per_track, num_expected_samples=num_expected_samples):
+            #     # Add the padding to the signal
+            #     signal = self._apply_padding(sample_per_track)
 
             # Extract the features
             feature = MFCCFeatureExtractor(hop_length=self.hope_length,
                                            n_mfcc=self.n_mfcc,
                                            sr=self.sample_rate,
                                            is_norm=self.is_norm).extract(signal)
+
             # If the normalization selected the mfcc built-in normalization mechanism should apply to the mfcces
             # If not MinMaxNormalization could apply
             if self.is_norm:
                 norm_feature = feature
             else:
                 norm_feature = MinMaxNormaliser(0, 1).normalise(feature)
+
+            norm_feature = np.array(norm_feature).T
 
             # Generate file path
             save_file_path = os.path.join(file_directory_path, f"{file_name}_{i}.npy")

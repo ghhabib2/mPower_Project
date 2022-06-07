@@ -1,3 +1,4 @@
 from .feature_extractor_abc import FeatureExtractor
 from .spectrograms import SpectrogramExtractor
 from .encoder_base_features import EncoderBaseFeatures
+from .mfcc_based_features import MFCCExtractor

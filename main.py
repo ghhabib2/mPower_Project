@@ -1,7 +1,7 @@
 from loader import VoiceDataLoader
 from downloader import VoiceDownloader
 # from featureExtraction import balanceHelper, gaitHelpers, tappingHelpers, memoryHelpers
-from feature_extraction import SpectrogramExtractor
+from feature_extraction import SpectrogramExtractor, MFCCExtractor
 from feature_extraction import EncoderBaseFeatures
 from model_trainers import VAETrainer
 from utils import signal_plot
@@ -31,6 +31,7 @@ def data_trainer():
 
     # Save the model
     vae_trainer.save()
+
 
 def data_downloader():
     # Get an object of Typing Data loader for loading Tapping data
@@ -64,10 +65,12 @@ def data_loader():
     # voice_data_csv_file_path = os.path.join(ROOT_PATH, "voice_data_csv.csv")
 
     # Define the project
-    SpectrogramExtractor(to_read_dir_path="voices",
-                         to_store_dir_path="spect_voices",
-                         dataset_csv_file="voice_data_csv.csv",
-                         segment_duration=1).process()
+    MFCCExtractor(to_read_dir_path="voices",
+                  to_store_dir_path="mfcc_voices",
+                  dataset_csv_file="voice_data_csv.csv",
+                  segment_duration=1,
+                  is_norm=True,
+                  n_mfcc=13).process()
 
     # data_loader_object.voice_feature_extractor_praa(data_file_path="voice_data_csv.csv",
     #                                                 data_folder_path="voice_feature_data_no_limit_prra",
@@ -106,8 +109,8 @@ def plotter():
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     # data_downloader()
-    # data_loader()
-    data_trainer()
+    data_loader()
+    # data_trainer()
     # balanceHelper.tested_jason()
     #  tappingHelpers.tested_jason()
     # memoryHelpers.tested_jason()
