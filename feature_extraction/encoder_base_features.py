@@ -95,7 +95,7 @@ class EncoderBaseFeatures(FeatureExtractor):
             # Read the data for each data record
 
             # Generate the pass to the file
-            file_to_load_path = f"{row['audio_audio']}_{self.segment_number - 1}.npy"
+            file_to_load_path = f"{row['audio_audio']}/{row['audio_audio']}_{self.segment_number}.npy"
             # Load file
             file_to_be_processed = self._loader(file_to_load_path)
             data_array.append(file_to_be_processed)

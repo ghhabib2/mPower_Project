@@ -37,23 +37,24 @@ class Padder:
         return padded_array
 
 
-class LogSpectrogramExtractor:
+class MFCCFeatureExtractor:
     """
     LogSpectrogramExtractor extracts log spectrogram's (in dB) from a
     time-series signal.
     """
 
-    def __init__(self, frame_size, hop_length):
-        self.frame_size = frame_size
+    def __init__(self, hop_length, n_mfcc, sr, is_norm=True):
+        self.sr = sr
+        self.n_mfcc = n_mfcc
         self.hop_length = hop_length
+        self.is_norm = is_norm
 
     def extract(self, signal):
-        stft = librosa.stft(signal,
-                            n_fft=self.frame_size,
-                            hop_length=self.hop_length)[:-1]
-        spectrogram = np.abs(stft)
-        log_spectrogram = librosa.amplitude_to_db(spectrogram)
-        return log_spectrogram
+        if self.is_norm:
+            mfcc = librosa.feature.mfcc(y=signal, sr=self.sr, n_mfcc=self.n_mfcc, norm='ortho')
+        else:
+            mfcc = librosa.feature.mfcc(y=signal, sr=self.sr, n_mfcc=self.n_mfcc)
+        return mfcc
 
 
 class MinMaxNormaliser:
@@ -74,7 +75,7 @@ class MinMaxNormaliser:
         return array
 
 
-class SpectrogramExtractor(FeatureExtractor):
+class MFCCExtractor(FeatureExtractor):
     """PreprocessingPipeline processes audio files in a directory, applying
     the following steps to each file:
         1- load a file
@@ -90,16 +91,17 @@ class SpectrogramExtractor(FeatureExtractor):
                  to_store_dir_path,
                  dataset_csv_file,
                  sample_rate=22050,
-                 frame_size=512,
-                 hope_length=256,
+                 hope_length=512,
                  segment_duration=1,
+                 n_mfcc=13,
+                 is_norm=True,
                  mono=True):
         """ Extract Spectrogram Features
 
         :param (int) sample_rate: Sample Rate
         :param (float) segment_duration: Duration of each feature sample
         :param (bool) mono: Flag check if the audio file should be loaded in Mono mode or in Stereo Mode.
-        :param (int) frame_size : Frame size
+        :param (int) n_mfcc : Number of MFCC coefficients
         :param (int) hope_length : Hope length
         """
 
@@ -115,8 +117,9 @@ class SpectrogramExtractor(FeatureExtractor):
         self.segment_duration = segment_duration
         self.mono = mono
         self.dataset_csv_file = dataset_csv_file
-        self.frame_size = frame_size
         self.hope_length = hope_length
+        self.n_mfcc = n_mfcc
+        self.is_norm = is_norm
 
     # Define the loader
     def _loader(self, file_path):
@@ -223,7 +226,7 @@ class SpectrogramExtractor(FeatureExtractor):
         for s in range(num_segments):
 
             # Separate the segment
-            start_sample =  int(num_expected_samples * s)
+            start_sample = int(num_expected_samples * s)
             finish_sample = int(start_sample + num_expected_samples)
             sample_per_track = signal[start_sample:finish_sample]
 
@@ -233,8 +236,16 @@ class SpectrogramExtractor(FeatureExtractor):
                 signal = self._apply_padding(sample_per_track)
 
             # Extract the features
-            feature = LogSpectrogramExtractor(self.frame_size, self.hope_length).extract(signal)
-            norm_feature = MinMaxNormaliser(0, 1).normalise(feature)
+            feature = MFCCFeatureExtractor(hop_length=self.hope_length,
+                                           n_mfcc=self.n_mfcc,
+                                           sr=self.sample_rate,
+                                           is_norm=self.is_norm).extract(signal)
+            # If the normalization selected the mfcc built-in normalization mechanism should apply to the mfcces
+            # If not MinMaxNormalization could apply
+            if self.is_norm:
+                norm_feature = feature
+            else:
+                norm_feature = MinMaxNormaliser(0, 1).normalise(feature)
 
             # Generate file path
             save_file_path = os.path.join(file_directory_path, f"{file_name}_{i}.npy")
@@ -290,7 +301,7 @@ class SpectrogramExtractor(FeatureExtractor):
         Identify if the padding necessary for the signal based on the expected number of samples.
 
         :param (np.ndarray) signal: Target Signal
-        :param (int) num_expected_samples : Number of expected samples
+        :param (float) num_expected_samples : Number of expected samples
         :return: True if it is necessary to add padding and false if it is not.
         :rtype: bool
         """

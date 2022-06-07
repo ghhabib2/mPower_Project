@@ -2,6 +2,8 @@ from loader import VoiceDataLoader
 from downloader import VoiceDownloader
 # from featureExtraction import balanceHelper, gaitHelpers, tappingHelpers, memoryHelpers
 from feature_extraction import SpectrogramExtractor
+from feature_extraction import EncoderBaseFeatures
+from model_trainers import VAETrainer
 from utils import signal_plot
 import os
 import numpy as np
@@ -12,6 +14,23 @@ ROOT_PATH = os.path.join(user_home_path, "Documents/collected_data_mpower")
 
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
+
+def data_trainer():
+    # Train based on the VAE Trainer
+    vae_trainer = VAETrainer(to_read_dir_path="spect_voices",
+                             to_store_dir_path="",
+                             csv_file_name="extracted_features_csv.csv",
+                             latent_space_dim=2,
+                             segment_number=2)
+
+    # Load the data to be used for training the encoder
+    vae_trainer.load()
+
+    # Train the encoder
+    vae_trainer.train()
+
+    # Save the model
+    vae_trainer.save()
 
 def data_downloader():
     # Get an object of Typing Data loader for loading Tapping data
@@ -47,7 +66,8 @@ def data_loader():
     # Define the project
     SpectrogramExtractor(to_read_dir_path="voices",
                          to_store_dir_path="spect_voices",
-                         dataset_csv_file="voice_data_csv.csv").process()
+                         dataset_csv_file="voice_data_csv.csv",
+                         segment_duration=1).process()
 
     # data_loader_object.voice_feature_extractor_praa(data_file_path="voice_data_csv.csv",
     #                                                 data_folder_path="voice_feature_data_no_limit_prra",
@@ -86,7 +106,8 @@ def plotter():
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     # data_downloader()
-    data_loader()
+    # data_loader()
+    data_trainer()
     # balanceHelper.tested_jason()
     #  tappingHelpers.tested_jason()
     # memoryHelpers.tested_jason()

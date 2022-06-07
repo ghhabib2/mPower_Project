@@ -83,8 +83,9 @@ class VAE:
             if not os.path.isdir(self.keep_csv_log_dir):
                 os.mkdir(self.keep_csv_log_dir)
             # Add the necessary information for storing the training log
-            csv_logger_callback = CSVLogger(os.path.join(self.keep_csv_log_dir,
-                                                         f"log_{time.strftime('%Y%m%d-%H%M%S')}.csv"))
+            csv_logger_callback = CSVLogger(
+                os.path.join(self.keep_csv_log_dir,
+                             f"log_{time.strftime('%Y%m%d-%H%M%S')}_dim{self.latent_space_dim}.csv"))
             call_backs.append(csv_logger_callback)
         self.model.fit(x_train,
                        x_train,
@@ -95,7 +96,7 @@ class VAE:
 
     def save(self):
         # generate the model directory name
-        model_dir_name = f"model_auto_encoder_{time.strftime('%Y%m%d-%H%M%S')}"
+        model_dir_name = f"model_auto_encoder_{time.strftime('%Y%m%d-%H%M%S')}_dim_{self.latent_space_dim}"
         model_dir_path = os.path.join(self._ROOT_PATH, f"auto_encoder_models/{model_dir_name}")
         self._create_folder_if_it_doesnt_exist(model_dir_path)
         self._save_parameters(model_dir_path)
