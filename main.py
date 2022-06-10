@@ -66,10 +66,10 @@ def data_loader():
 
     # Define the project
     MFCCExtractor(to_read_dir_path="voices",
-                  to_store_dir_path="mfcc_voices",
+                  to_store_dir_path="mfcc_voices_normalized",
                   dataset_csv_file="voice_data_csv.csv",
                   segment_duration=1,
-                  is_norm=True,
+                  is_norm=False,
                   n_mfcc=13).process()
 
     # data_loader_object.voice_feature_extractor_praa(data_file_path="voice_data_csv.csv",
@@ -109,8 +109,8 @@ def plotter():
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     # data_downloader()
-    data_loader()
-    # data_trainer()
+    #data_loader()
+    data_trainer()
     # balanceHelper.tested_jason()
     #  tappingHelpers.tested_jason()
     # memoryHelpers.tested_jason()

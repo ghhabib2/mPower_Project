@@ -1,16 +1,19 @@
 # Define the libraries Roots
 import os
 import numpy as np
-import matlab.engine
+# import matlab.engine
 import soundfile as sf
 import librosa
 import time
 import gc
+
 import parselmouth
 from parselmouth.praat import call
+
+
 import statistics
 import speechpy
-import emd
+# import emd
 import math
 import itertools
 
@@ -68,7 +71,7 @@ def matlab_base_feature_downloader(file_path, segment_duration=2):
         for s in range(num_segments):
 
             # Start the matlab engine
-            eng = matlab.engine.start_matlab()
+            eng = None #matlab.engine.start_matlab()
 
             # Start loading the toolboxes
             # Adding the related paths
@@ -144,6 +147,7 @@ def praa_base_feature_downloader(file_path, segment_duration=2):
     """
 
     try:
+
 
         signal, fs = librosa.load(file_path, 16000)
 
@@ -233,7 +237,7 @@ def extract_praa_based_features(voice_path, f0min, f0max, unit):
 
     signal, fs = librosa.load(voice_path, 16000)
 
-    imf = emd.sift.sift(signal)
+    # imf = emd.sift.sift(signal)
 
     # TODO add other features.
 
@@ -437,7 +441,7 @@ def extract_praa_based_features(voice_path, f0min, f0max, unit):
     final_feature_vector.append(np.float64(f3_median))
     final_feature_vector.append(np.float64(f4_median))
 
-    final_feature_vector.append(np.int(imf.shape[1]))
+    # final_feature_vector.append(np.int(imf.shape[1]))
 
     final_feature_vector = np.nan_to_num(final_feature_vector, nan=0)
 
