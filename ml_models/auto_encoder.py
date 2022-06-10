@@ -1,15 +1,14 @@
+import datetime
 import os
 import pickle
 
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, Conv2D, ReLU, BatchNormalization, \
     Flatten, Dense, Reshape, Conv2DTranspose, Activation, Lambda
-from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
 from tensorflow.keras import backend as K
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.metrics import serialize,MeanMetricWrapper
-from tensorflow.keras.metrics import Metric
-from tensorflow.keras.losses import MeanSquaredError
+from tensorflow.keras.metrics import MeanMetricWrapper
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, TensorBoard
 import numpy as np
 import tensorflow as tf
 import time
@@ -85,22 +84,71 @@ class VAE:
 
     def train(self, x_train, batch_size, num_epochs):
         call_backs = []
-        if self.latent_space_dim:
-            # Check if the directory exists
 
-            if not os.path.isdir(self.keep_csv_log_dir):
-                os.mkdir(self.keep_csv_log_dir)
-            # Add the necessary information for storing the training log
-            csv_logger_callback = CSVLogger(
-                os.path.join(self.keep_csv_log_dir,
-                             f"log_{time.strftime('%Y%m%d-%H%M%S')}_dim{self.latent_space_dim}.csv"))
-            call_backs.append(csv_logger_callback)
+        # Check if the directory exists
+
+        if not os.path.isdir(self.keep_csv_log_dir):
+            os.makedirs(self.keep_csv_log_dir)
+        # CSVLogger
+        # Add the necessary information for storing the training log
+        csv_logger_callback = CSVLogger(
+            os.path.join(self.keep_csv_log_dir,
+                         f"log_{time.strftime('%Y%m%d-%H%M%S')}_dim{self.latent_space_dim}.csv"))
+        call_backs.append(csv_logger_callback)
+
+        # ModelCheckpoint
+        model_check_point_dir_path = os.path.join(self.keep_csv_log_dir, "models")
+
+        # Create the folder for storing the check_point_models if it is not exist
+        if not os.path.isdir(model_check_point_dir_path):
+            os.makedirs(model_check_point_dir_path)
+
+        # File path and template for checkpoint models
+        model_check_point_file_path = os.path.join(model_check_point_dir_path,
+                                                   "{epoch:02d}-{val_loss:.2f}.hdf5")
+        model_checkpoit_callback = ModelCheckpoint(
+            filepath=model_check_point_file_path,
+            save_weights_only=True,
+            monitor='loss',
+            mode='min',
+            save_best_only=True
+        )
+        call_backs.append(model_checkpoit_callback)
+
+        # EarlyStopping
+        early_stopping_callback = EarlyStopping(
+            monitor='loss',
+            min_delta=0,
+            patience=5,
+            verbose=1,
+            mode='min',
+            baseline=None,
+            restore_best_weights=False
+        )
+
+        call_backs.append(early_stopping_callback)
+
+        # Tensorboard
+        model_tensorboard_dir_callback = \
+            os.path.join(self.keep_csv_log_dir,
+                         f"tensor_board_log_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")
+
+        # Check the directory and make it if it is not exist.
+        if not os.path.isdir(model_tensorboard_dir_callback):
+            os.makedirs(model_tensorboard_dir_callback)
+
+        tensorboard_callback = TensorBoard(log_dir=model_tensorboard_dir_callback, histogram_freq=1)
+
+        call_backs.append(tensorboard_callback)
+
         self.model.fit(x_train,
                        x_train,
                        batch_size=batch_size,
                        callbacks=call_backs,
                        epochs=num_epochs,
                        shuffle=True)
+
+        
 
     def save(self):
         # generate the model directory name
@@ -167,6 +215,7 @@ class VAE:
             kl_loss = -0.5 * K.sum(1 + self.log_variance - K.square(self.mu) -
                                    K.exp(self.log_variance), axis=1) * FACTOR
             return kl_loss
+
         return _calculate_kl_loss
 
     def _create_folder_if_it_doesnt_exist(self, folder):
@@ -189,7 +238,7 @@ class VAE:
             pickle.dump(parameters, f)
 
     def _save_weights(self, save_folder):
-        save_path = os.path.join(save_folder, f"weights_{time.strftime('%Y%m%d-%H%M%S')}.h5")
+        save_path = os.path.join(save_folder, f"weights_{time.strftime('%Y%m%d-%H%M%S')}.hdf5")
         self.model.save_weights(save_path)
 
     def _build(self):
