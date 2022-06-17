@@ -102,11 +102,11 @@ class VAETrainer(ModelTrainer):
             input_shape=(256, 192, 1),
             latent_space_dim_max=3,
             latent_space_dim_min=2,
-            conv_filters_max_size=1024,
+            conv_filters_max_size=2048,
             conv_filters_min_size=32,
-            conv_kernels_max_size=5,
+            conv_kernels_max_size=7,
             conv_strides_max_size=2,
-            keep_csv_log_dir=f"auto_encoder_model_dir_{time.strftime('%Y%m%d-%H%M%S')}"
+            keep_csv_log_dir=f"trainings/auto_encoder_model_dir_{time.strftime('%Y%m%d-%H%M%S')}"
         )
         # autoencoder.summary()
         # autoencoder.compile(self._learning_rate)

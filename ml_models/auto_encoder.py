@@ -17,6 +17,7 @@ import time
 
 tf.compat.v1.disable_eager_execution()
 
+
 # Root of the system
 user_home_path = user_path = os.path.expanduser("~")
 
@@ -108,8 +109,8 @@ class VAE:
         tuner = kt.BayesianOptimization(
             self._build,
             objective="val_loss",
-            max_trials=15,
-            num_initial_points=2,
+            max_trials=30,
+            num_initial_points=4,
             alpha=0.0001,
             beta=2.6,
             seed=0,
@@ -259,27 +260,20 @@ class VAE:
 
     def _calculate_reconstruction_loss(self, y_target, y_predicted):
         error = y_target - y_predicted
-        reconstruction_loss = K.mean(K.square(error), axis=[1, 2, 3])
+
+        reconstruction_loss = tf.reduce_mean(tf.square(error), axis=[1, 2, 3])
+
         return reconstruction_loss
 
     def _calculate_mu(self, y_target, y_predicted):
-        return self.mu
+        return tf.sqrt(tf.square(self.mu))
 
     def _calculate_log_variance(self, y_target, y_predicted):
-        return self.log_variance
+        return tf.sqrt(tf.square(self.log_variance))
 
     def _calculate_kl_loss(self, y_target, y_predicted):
-        kl_loss = -0.5 * K.sum(1 + self.log_variance - K.square(self.mu) -
-                               K.exp(self.log_variance), axis=1)
+        kl_loss = -0.5 * tf.reduce_sum(1 + self.log_variance - tf.square(self.mu) - tf.exp(self.log_variance), axis=1)
         return kl_loss
-
-    def _calculate_kl_loss_metric(self, FACTOR=1):
-        def _calculate_kl_loss(y_target, y_predicted):
-            kl_loss = -0.5 * K.sum(1 + self.log_variance - K.square(self.mu) -
-                                   K.exp(self.log_variance), axis=1) * FACTOR
-            return kl_loss
-
-        return _calculate_kl_loss
 
     def _create_folder_if_it_doesnt_exist(self, folder):
         if not os.path.exists(folder):
@@ -481,9 +475,13 @@ class VAE:
 
         def sample_point_from_normal_distribution(args):
             mu, log_variance = args
-            epsilon = K.random_normal(shape=K.shape(self.mu), mean=0.,
-                                      stddev=1.)
-            sampled_point = mu + K.exp(log_variance / 2) * epsilon
+
+            epsilon = tf.random.normal(shape=tf.shape(self.mu),
+                                       mean=0,
+                                       stddev=1.)
+
+            sampled_point = mu + tf.exp(log_variance / 2) * epsilon
+
             return sampled_point
 
         x = Lambda(sample_point_from_normal_distribution,
