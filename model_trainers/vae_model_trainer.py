@@ -100,14 +100,16 @@ class VAETrainer(ModelTrainer):
     def train(self):
         autoencoder = VAE(
             input_shape=(256, 192, 1),
-            conv_filters=(512, 256, 128, 64, 32),
-            conv_kernels=(3, 3, 3, 3, 3),
-            conv_strides=(2, 2, 2, 2,  (2, 1)),
-            latent_space_dim=self._latent_space_dim,
+            latent_space_dim_max=3,
+            latent_space_dim_min=2,
+            conv_filters_max_size=1024,
+            conv_filters_min_size=32,
+            conv_kernels_max_size=5,
+            conv_strides_max_size=2,
             keep_csv_log_dir=f"auto_encoder_model_dir_{time.strftime('%Y%m%d-%H%M%S')}"
         )
-        autoencoder.summary()
-        autoencoder.compile(self._learning_rate)
+        # autoencoder.summary()
+        # autoencoder.compile(self._learning_rate)
         autoencoder.train(self._training_data, self._batch_size, self._epochs)
 
         return autoencoder

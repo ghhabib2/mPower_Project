@@ -20,7 +20,7 @@ def data_trainer():
     vae_trainer = VAETrainer(to_read_dir_path="spect_voices",
                              to_store_dir_path="",
                              csv_file_name="extracted_features_csv.csv",
-                             latent_space_dim=2,
+                             latent_space_dim=3,
                              segment_number=2)
 
     # Load the data to be used for training the encoder
