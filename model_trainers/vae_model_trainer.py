@@ -102,7 +102,7 @@ class VAETrainer(ModelTrainer):
             input_shape=(256, 192, 1),
             latent_space_dim_max=3,
             latent_space_dim_min=2,
-            conv_filters_max_size=2048,
+            conv_filters_max_size=512,
             conv_filters_min_size=32,
             conv_kernels_max_size=7,
             conv_strides_max_size=2,

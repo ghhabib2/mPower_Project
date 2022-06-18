@@ -111,7 +111,6 @@ if __name__ == '__main__':
     # data_downloader()
     #data_loader()
     data_trainer()
-    # balanceHelper.tested_jason()
     #  tappingHelpers.tested_jason()
     # memoryHelpers.tested_jason()
     # plotter()

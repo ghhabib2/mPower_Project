@@ -2,6 +2,7 @@ import datetime
 import os
 import pickle
 
+import math
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, Conv2D, ReLU, BatchNormalization, \
     Flatten, Dense, Reshape, Conv2DTranspose, Activation, Lambda
@@ -10,8 +11,6 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.metrics import MeanMetricWrapper
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, TensorBoard
 import keras_tuner as kt
-from keras_tuner import HyperParameters
-import numpy as np
 import tensorflow as tf
 import time
 
@@ -128,7 +127,7 @@ class VAE:
         early_stopping_callback = EarlyStopping(
             monitor='val_loss',
             min_delta=0,
-            patience=5,
+            patience=10,
             verbose=1,
             mode='min',
             baseline=None,
@@ -140,7 +139,7 @@ class VAE:
         # Tune the hps
         tuner.search(x_train,
                      x_train,
-                     epochs=50,
+                     epochs=100,
                      validation_split=0.2, callbacks=[early_stopping_callback])
         # Show the result summary
         tuner.results_summary()
@@ -261,18 +260,17 @@ class VAE:
     def _calculate_reconstruction_loss(self, y_target, y_predicted):
         error = y_target - y_predicted
 
-        reconstruction_loss = tf.reduce_mean(tf.square(error), axis=[1, 2, 3])
-
+        reconstruction_loss = K.mean(K.square(error), axis=[1, 2, 3])
         return reconstruction_loss
 
     def _calculate_mu(self, y_target, y_predicted):
-        return tf.sqrt(tf.square(self.mu))
+        return self.mu
 
     def _calculate_log_variance(self, y_target, y_predicted):
-        return tf.sqrt(tf.square(self.log_variance))
+        return K.exp(self.log_variance / 2)
 
     def _calculate_kl_loss(self, y_target, y_predicted):
-        kl_loss = -0.5 * tf.reduce_sum(1 + self.log_variance - tf.square(self.mu) - tf.exp(self.log_variance), axis=1)
+        kl_loss = -0.5 * K.sum(1 + self.log_variance - K.square(self.mu) - K.exp(self.log_variance), axis=1)
         return kl_loss
 
     def _create_folder_if_it_doesnt_exist(self, folder):
@@ -357,7 +355,7 @@ class VAE:
                                     MeanMetricWrapper(fn=self._calculate_reconstruction_loss,
                                                       name="reconstruction_loss"),
                                     MeanMetricWrapper(fn=self._calculate_mu, name="mu"),
-                                    MeanMetricWrapper(fn=self._calculate_log_variance, name="log_variance")])
+                                    MeanMetricWrapper(fn=self._calculate_log_variance, name="std")])
 
         return temp_model
 
@@ -384,7 +382,8 @@ class VAE:
         return Input(shape=self.latent_space_dim, name="decoder_input")
 
     def _add_dense_layer(self, decoder_input):
-        num_neurons = np.prod(self._shape_before_bottleneck)
+        # num_neurons = np.prod(self._shape_before_bottleneck)
+        num_neurons = math.prod(self._shape_before_bottleneck)
         dense_layer = Dense(num_neurons, name="decoder_dense")(decoder_input)
         return dense_layer
 
@@ -476,11 +475,11 @@ class VAE:
         def sample_point_from_normal_distribution(args):
             mu, log_variance = args
 
-            epsilon = tf.random.normal(shape=tf.shape(self.mu),
-                                       mean=0,
-                                       stddev=1.)
+            epsilon = K.random_normal(shape=K.shape(self.mu),
+                                      mean=0,
+                                      stddev=1.)
 
-            sampled_point = mu + tf.exp(log_variance / 2) * epsilon
+            sampled_point = mu + K.exp(log_variance / 2) * epsilon
 
             return sampled_point
 
