@@ -17,8 +17,8 @@ ROOT_PATH = os.path.join(user_home_path, "Documents/collected_data_mpower")
 
 def data_trainer():
     # Train based on the VAE Trainer
-    vae_trainer = VAETrainer(to_read_dir_path="spect_voices",
-                             to_store_dir_path="",
+    vae_trainer = VAETrainer(to_read_dir_path="mfcc_voices",
+                             to_store_dir_path="mfcc_voices_max_min_normalized",
                              csv_file_name="extracted_features_csv.csv",
                              latent_space_dim=3,
                              segment_number=2)
@@ -66,11 +66,11 @@ def data_loader():
 
     # Define the project
     MFCCExtractor(to_read_dir_path="voices",
-                  to_store_dir_path="mfcc_voices_normalized",
+                  to_store_dir_path="mfcc_voices_max_min_normalized", # mfcc_voices_max_min_normalized
                   dataset_csv_file="voice_data_csv.csv",
                   segment_duration=1,
                   is_norm=False,
-                  n_mfcc=13).process()
+                  n_mfcc=16).process()
 
     # data_loader_object.voice_feature_extractor_praa(data_file_path="voice_data_csv.csv",
     #                                                 data_folder_path="voice_feature_data_no_limit_prra",

@@ -10,7 +10,7 @@ PreprocessingPipeline
 import gc
 import os
 import pickle
-
+import math
 import pandas as pd
 
 from feature_extraction import FeatureExtractor
@@ -43,21 +43,40 @@ class MFCCFeatureExtractor:
     time-series signal.
     """
 
-    def __init__(self, hop_length, n_mfcc, sr, is_norm=True):
+    def __init__(self, hop_length,
+                 n_mfcc,
+                 sr,
+                 expected_num_mfcc_vectors_per_segment, is_norm=True):
         self.sr = sr
         self.n_mfcc = n_mfcc
         self.hop_length = hop_length
         self.is_norm = is_norm
+        self.expected_num_mfcc_vectors_per_segment = expected_num_mfcc_vectors_per_segment
 
     def extract(self, signal):
 
         s = librosa.feature.melspectrogram(y=signal, sr=self.sr, n_mels=128, fmax=8000)
 
         if self.is_norm:
-            mfcc = librosa.feature.mfcc(S=librosa.power_to_db(s), n_mfcc=self.n_mfcc, norm='ortho')
+            # mfcc = librosa.feature.mfcc(S=librosa.power_to_db(s), n_mfcc=self.n_mfcc, norm='ortho')
+            mfcc = librosa.feature.mfcc(y=signal,
+                                        sr=self.sr,
+                                        n_fft=2048,
+                                        hop_length=512,
+                                        n_mfcc=self.n_mfcc,
+                                        norm='ortho')
+
         else:
-            mfcc = librosa.feature.mfcc(S=librosa.power_to_db(s), n_mfcc=self.n_mfcc)
-        return mfcc
+            mfcc = librosa.feature.mfcc(y=signal,
+                                        sr=self.sr,
+                                        n_fft=2048,
+                                        hop_length=512,
+                                        n_mfcc=self.n_mfcc)
+
+        if len(mfcc.T) == self.expected_num_mfcc_vectors_per_segment:
+            return mfcc
+        else:
+            raise RuntimeError("Not correct size")
 
 
 class MinMaxNormaliser:
@@ -94,7 +113,7 @@ class MFCCExtractor(FeatureExtractor):
                  to_store_dir_path,
                  dataset_csv_file,
                  sample_rate=22050,
-                 hope_length=512,
+                 hop_length=512,
                  segment_duration=1,
                  n_mfcc=13,
                  is_norm=True,
@@ -120,7 +139,7 @@ class MFCCExtractor(FeatureExtractor):
         self.segment_duration = segment_duration
         self.mono = mono
         self.dataset_csv_file = dataset_csv_file
-        self.hope_length = hope_length
+        self.hop_length = hop_length
         self.n_mfcc = n_mfcc
         self.is_norm = is_norm
 
@@ -210,13 +229,16 @@ class MFCCExtractor(FeatureExtractor):
         signal_duration = librosa.get_duration(y=signal, sr=self.sample_rate)
 
         # Calculate the sample per track
-        sample_per_track = signal_duration * self.sample_rate
-
         # Calculate the number of samples per segment
-        num_expected_samples = self.segment_duration * self.sample_rate
+        # Calculate the sample per track value
+        sample_per_track = signal_duration * self.sample_rate
+        # Calculate the number of sample segments
 
-        # Calculate the number of segments
-        num_segments = int(sample_per_track // num_expected_samples)
+        number_of_samples_per_segment = 3 * self.sample_rate
+        # Calculate the number of possible segments for the file
+        num_segments = int(sample_per_track // number_of_samples_per_segment)
+        # Calculate the expected mfcc vector length
+        expected_num_mfcc_vectors_per_segment = math.ceil(number_of_samples_per_segment / self.hop_length)
 
         # Check if any folder with the name of the file exists in the store folder
         file_directory_path = os.path.join(store_path, str(file_name))
@@ -226,42 +248,71 @@ class MFCCExtractor(FeatureExtractor):
             os.makedirs(file_directory_path)
 
         i = 1
-        for s in range(num_segments):
 
-            # Separate the segment
-            start_sample = int(num_expected_samples * s)
-            finish_sample = int(start_sample + num_expected_samples)
-            sample_per_track = signal[start_sample:finish_sample]
+        # Set the segment number to 2
+        start_sample = int(self.sample_rate * 2)
+        finish_sample = int(start_sample + number_of_samples_per_segment)
+        sample_per_track = signal[start_sample:finish_sample]
+        feature = MFCCFeatureExtractor(hop_length=self.hop_length,
+                                       n_mfcc=self.n_mfcc,
+                                       sr=self.sample_rate,
+                                       is_norm=self.is_norm,
+                                       expected_num_mfcc_vectors_per_segment=expected_num_mfcc_vectors_per_segment)\
+            .extract(sample_per_track)
 
-            # # Check if the padding is necessary to be added
-            # if self._is_padding_necessary(sample_per_track, num_expected_samples=num_expected_samples):
-            #     # Add the padding to the signal
-            #     signal = self._apply_padding(sample_per_track)
+        # If the normalization selected the mfcc built-in normalization mechanism should apply to the mfcces
+        # If not MinMaxNormalization could apply
+        if self.is_norm:
+            norm_feature = feature
+        else:
+            norm_feature = MinMaxNormaliser(0, 1).normalise(feature)
 
-            # Extract the features
-            feature = MFCCFeatureExtractor(hop_length=self.hope_length,
-                                           n_mfcc=self.n_mfcc,
-                                           sr=self.sample_rate,
-                                           is_norm=self.is_norm).extract(signal)
+        # Generate file path
+        save_file_path = os.path.join(file_directory_path, f"{file_name}_2.npy")
+        # Save the feature vector
+        self._save_feature(norm_feature, save_file_path)
+        # Generate the file path for storing max and min values
+        save_file_path = os.path.join(file_directory_path, f"{file_name}_2.pkl")
+        self._save_min_max_values(save_file_path, feature.min(), feature.max())
 
-            # If the normalization selected the mfcc built-in normalization mechanism should apply to the mfcces
-            # If not MinMaxNormalization could apply
-            if self.is_norm:
-                norm_feature = feature
-            else:
-                norm_feature = MinMaxNormaliser(0, 1).normalise(feature)
-
-            norm_feature = np.array(norm_feature).T
-
-            # Generate file path
-            save_file_path = os.path.join(file_directory_path, f"{file_name}_{i}.npy")
-            # Save the feature vector
-            self._save_feature(norm_feature, save_file_path)
-            # Generate the file path for storing max and min values
-            save_file_path = os.path.join(file_directory_path, f"{file_name}_{i}.pkl")
-            self._save_min_max_values(save_file_path, feature.min(), feature.max())
-
-            i += 1
+        # for s in range(num_segments):
+        #
+        #     # Separate the segment
+        #     start_sample = int(number_of_samples_per_segment * s)
+        #     finish_sample = int(start_sample + number_of_samples_per_segment)
+        #     sample_per_track = signal[start_sample:finish_sample]
+        #
+        #     # # Check if the padding is necessary to be added
+        #     # if self._is_padding_necessary(sample_per_track, num_expected_samples=num_expected_samples):
+        #     #     # Add the padding to the signal
+        #     #     signal = self._apply_padding(sample_per_track)
+        #
+        #     # Extract the features
+        #     feature = MFCCFeatureExtractor(hop_length=self.hop_length,
+        #                                    n_mfcc=self.n_mfcc,
+        #                                    sr=self.sample_rate,
+        #                                    is_norm=self.is_norm,
+        #                                    expected_num_mfcc_vectors_per_segment=expected_num_mfcc_vectors_per_segment)\
+        #         .extract(sample_per_track)
+        #
+        #     # If the normalization selected the mfcc built-in normalization mechanism should apply to the mfcces
+        #     # If not MinMaxNormalization could apply
+        #     if self.is_norm:
+        #         norm_feature = feature
+        #     else:
+        #         norm_feature = MinMaxNormaliser(0, 1).normalise(feature)
+        #
+        #     norm_feature = np.array(norm_feature).T
+        #
+        #     # Generate file path
+        #     save_file_path = os.path.join(file_directory_path, f"{file_name}_{i}.npy")
+        #     # Save the feature vector
+        #     self._save_feature(norm_feature, save_file_path)
+        #     # Generate the file path for storing max and min values
+        #     save_file_path = os.path.join(file_directory_path, f"{file_name}_{i}.pkl")
+        #     self._save_min_max_values(save_file_path, feature.min(), feature.max())
+        #
+        #     i += 1
 
     def _save_feature(self, feature, file_path):
         """

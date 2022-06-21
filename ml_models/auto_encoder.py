@@ -105,13 +105,10 @@ class VAE:
             os.makedirs(model_check_point_dir_path)
 
         # Model Tuner
-        tuner = kt.BayesianOptimization(
+        tuner = kt.RandomSearch(
             self._build,
             objective="val_loss",
-            max_trials=30,
-            num_initial_points=4,
-            alpha=0.0001,
-            beta=2.6,
+            max_trials=100,
             seed=0,
             hyperparameters=None,
             tune_new_entries=True,
@@ -127,7 +124,7 @@ class VAE:
         early_stopping_callback = EarlyStopping(
             monitor='val_loss',
             min_delta=0,
-            patience=10,
+            patience=5,
             verbose=1,
             mode='min',
             baseline=None,
@@ -306,10 +303,7 @@ class VAE:
                                   max_value=self.conv_kernels_max_size,
                                   step=2)
 
-        temp_conv_stride_size = hp.Int('best_stride_size',
-                                       min_value=2,
-                                       max_value=self.conv_strides_max_size,
-                                       step=2)
+        temp_conv_stride_size = self.conv_strides_max_size
 
         temp_latent_space_dim = hp.Int('best_latent_space_dim',
                                        min_value=self.latent_space_dim_min,

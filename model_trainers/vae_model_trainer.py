@@ -65,7 +65,8 @@ class VAETrainer(ModelTrainer):
 
         print("Please wait while system loading the data ...")
         # Iterate over the csv file
-
+        minimum_values = None
+        maximum_values = None
         for _, row in csv_data.iterrows():
             # Read the data for each data record
 
@@ -74,15 +75,24 @@ class VAETrainer(ModelTrainer):
                                              f"{row['audio_audio']}/{row['audio_audio']}_{self._segment_number}.npy")
             try:
                 feature = self._load_file(file_to_read_path=file_to_load_path)
+                if minimum_values is None:
+                    minimum_values, _ = feature.shape
+                    maximum_values, _ = feature.shape
+                else:
+                    minimum_values = min(minimum_values, feature.shape[0])
+                    maximum_values = max(maximum_values, feature.shape[0])
                 x_train.append(feature)
             except Exception as ex:
                 print(f"The feature not loaded with the following exception \n\n{str(ex)}")
                 continue
 
         # Find the mimumul value
+        # TODO This changes are made because of the input file we have for the network with (433, 16) shape. The target
+        # Shape is (448, 16)
         for index, item in enumerate(x_train):
             # Cut the useless part of the array
-            x_train[index] = item[:, :192]
+            # temp_array = np.concatenate([item[:433,:], temp_zero_array], axis=0)
+            x_train[index] = item[:, :128].T
 
         x_train = np.array(x_train)
 
@@ -99,11 +109,11 @@ class VAETrainer(ModelTrainer):
 
     def train(self):
         autoencoder = VAE(
-            input_shape=(256, 192, 1),
+            input_shape=(128, 16, 1),
             latent_space_dim_max=3,
             latent_space_dim_min=2,
-            conv_filters_max_size=512,
-            conv_filters_min_size=32,
+            conv_filters_max_size=128,
+            conv_filters_min_size=8,
             conv_kernels_max_size=7,
             conv_strides_max_size=2,
             keep_csv_log_dir=f"trainings/auto_encoder_model_dir_{time.strftime('%Y%m%d-%H%M%S')}"
