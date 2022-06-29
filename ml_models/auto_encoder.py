@@ -16,7 +16,6 @@ import time
 
 tf.compat.v1.disable_eager_execution()
 
-
 # Root of the system
 user_home_path = user_path = os.path.expanduser("~")
 
@@ -117,6 +116,16 @@ class VAE:
             directory=model_check_point_dir_path,
             project_name='encoder_tuning_proj')
 
+        # tuner = kt.Hyperband(self._build,
+        #                      objective='val_loss',
+        #                      max_epochs=100,
+        #                      factor=3,
+        #                      hyperparameters=None,
+        #                      tune_new_entries=True,
+        #                      allow_new_entries=True,
+        #                      overwrite=True,
+        #                      directory=model_check_point_dir_path,
+        #                      project_name='encoder_tuning_proj')
         # Show a summary
         tuner.search_space_summary()
 

@@ -2,6 +2,7 @@ from loader import VoiceDataLoader
 from downloader import VoiceDownloader
 # from featureExtraction import balanceHelper, gaitHelpers, tappingHelpers, memoryHelpers
 from feature_extraction import SpectrogramExtractor, MFCCExtractor
+from report_generator import TuningReportGenerator
 from feature_extraction import EncoderBaseFeatures
 from model_trainers import VAETrainer
 from utils import signal_plot
@@ -17,8 +18,8 @@ ROOT_PATH = os.path.join(user_home_path, "Documents/collected_data_mpower")
 
 def data_trainer():
     # Train based on the VAE Trainer
-    vae_trainer = VAETrainer(to_read_dir_path="mfcc_voices",
-                             to_store_dir_path="mfcc_voices_max_min_normalized",
+    vae_trainer = VAETrainer(to_read_dir_path="mfcc_voices_max_min_normalized",
+                             to_store_dir_path="mfcc_voices",
                              csv_file_name="extracted_features_csv.csv",
                              latent_space_dim=3,
                              segment_number=2)
@@ -66,11 +67,11 @@ def data_loader():
 
     # Define the project
     MFCCExtractor(to_read_dir_path="voices",
-                  to_store_dir_path="mfcc_voices_max_min_normalized", # mfcc_voices_max_min_normalized
+                  to_store_dir_path="mfcc_voices_max_min_normalized",  # mfcc_voices_max_min_normalized
                   dataset_csv_file="voice_data_csv.csv",
                   segment_duration=1,
                   is_norm=False,
-                  n_mfcc=16).process()
+                  n_mfcc=32).process()
 
     # data_loader_object.voice_feature_extractor_praa(data_file_path="voice_data_csv.csv",
     #                                                 data_folder_path="voice_feature_data_no_limit_prra",
@@ -85,32 +86,43 @@ def data_loader():
 
 
 def plotter():
-    balance_file_path = os.path.join(ROOT_PATH, "data_moition_signal_sample.csv")
-    balance_file_distance_path = os.path.join(ROOT_PATH, "data_moition_signal_sample_distance.csv")
-    tapinter_file_path = os.path.join(ROOT_PATH, "tap_inter.csv")
 
-    balance_axis_file = np.genfromtxt(balance_file_path, delimiter=",")
-    balance_distance_file = np.genfromtxt(balance_file_distance_path, delimiter=",")
-    tapinter_file = np.genfromtxt(tapinter_file_path, delimiter=",")
+    temp_plot = TuningReportGenerator(
+        to_read_dir_path="trainings/auto_encoder_model_dir_20220623-084135/models/encoder_tuning_proj",
+        latent_dim=2,
+        metric_to_check='val_loss'
+        )
 
-    balance_time = balance_axis_file[:, 0]
-    balance_x = balance_axis_file[:, 1]
-    balance_y = balance_axis_file[:, 2]
-    balance_z = balance_axis_file[:, 3]
-    balance_distance = balance_distance_file
+    temp_plot.load()
 
-    signal_plot.signal_plotter(balance_time, balance_x, "Balance signal X axis")
-    signal_plot.signal_plotter(balance_time, balance_y, "Balance signal Y axis")
-    signal_plot.signal_plotter(balance_time, balance_z, "Balance signal Z axis")
-    signal_plot.signal_plotter(balance_time, balance_distance, "Balance Distance from origin signal")
-    signal_plot.array_plot(tapinter_file, "Tapping Interval")
+    temp_plot.plot()
+
+    # balance_file_path = os.path.join(ROOT_PATH, "data_moition_signal_sample.csv")
+    # balance_file_distance_path = os.path.join(ROOT_PATH, "data_moition_signal_sample_distance.csv")
+    # tapinter_file_path = os.path.join(ROOT_PATH, "tap_inter.csv")
+    #
+    # balance_axis_file = np.genfromtxt(balance_file_path, delimiter=",")
+    # balance_distance_file = np.genfromtxt(balance_file_distance_path, delimiter=",")
+    # tapinter_file = np.genfromtxt(tapinter_file_path, delimiter=",")
+    #
+    # balance_time = balance_axis_file[:, 0]
+    # balance_x = balance_axis_file[:, 1]
+    # balance_y = balance_axis_file[:, 2]
+    # balance_z = balance_axis_file[:, 3]
+    # balance_distance = balance_distance_file
+    #
+    # signal_plot.signal_plotter(balance_time, balance_x, "Balance signal X axis")
+    # signal_plot.signal_plotter(balance_time, balance_y, "Balance signal Y axis")
+    # signal_plot.signal_plotter(balance_time, balance_z, "Balance signal Z axis")
+    # signal_plot.signal_plotter(balance_time, balance_distance, "Balance Distance from origin signal")
+    # signal_plot.array_plot(tapinter_file, "Tapping Interval")
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     # data_downloader()
     #data_loader()
-    data_trainer()
+    # data_trainer()
     #  tappingHelpers.tested_jason()
     # memoryHelpers.tested_jason()
-    # plotter()
+    plotter()

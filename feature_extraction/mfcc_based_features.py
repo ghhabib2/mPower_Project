@@ -65,6 +65,7 @@ class MFCCFeatureExtractor:
                                         hop_length=512,
                                         n_mfcc=self.n_mfcc,
                                         norm='ortho')
+            mfcc_delta = librosa.feature.delta(data=mfcc)
 
         else:
             mfcc = librosa.feature.mfcc(y=signal,
@@ -72,9 +73,10 @@ class MFCCFeatureExtractor:
                                         n_fft=2048,
                                         hop_length=512,
                                         n_mfcc=self.n_mfcc)
+            mfcc_delta = librosa.feature.delta(mfcc)
 
         if len(mfcc.T) == self.expected_num_mfcc_vectors_per_segment:
-            return mfcc
+            return np.concatenate((mfcc[:, :128].T, mfcc_delta[:, :128].T))
         else:
             raise RuntimeError("Not correct size")
 
@@ -257,7 +259,7 @@ class MFCCExtractor(FeatureExtractor):
                                        n_mfcc=self.n_mfcc,
                                        sr=self.sample_rate,
                                        is_norm=self.is_norm,
-                                       expected_num_mfcc_vectors_per_segment=expected_num_mfcc_vectors_per_segment)\
+                                       expected_num_mfcc_vectors_per_segment=expected_num_mfcc_vectors_per_segment) \
             .extract(sample_per_track)
 
         # If the normalization selected the mfcc built-in normalization mechanism should apply to the mfcces

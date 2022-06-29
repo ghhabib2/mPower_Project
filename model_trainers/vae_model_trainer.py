@@ -92,7 +92,7 @@ class VAETrainer(ModelTrainer):
         for index, item in enumerate(x_train):
             # Cut the useless part of the array
             # temp_array = np.concatenate([item[:433,:], temp_zero_array], axis=0)
-            x_train[index] = item[:, :128].T
+            x_train[index] = item
 
         x_train = np.array(x_train)
 
@@ -109,12 +109,12 @@ class VAETrainer(ModelTrainer):
 
     def train(self):
         autoencoder = VAE(
-            input_shape=(128, 16, 1),
+            input_shape=(256, 32, 1),
             latent_space_dim_max=3,
             latent_space_dim_min=2,
-            conv_filters_max_size=128,
-            conv_filters_min_size=8,
-            conv_kernels_max_size=7,
+            conv_filters_max_size=512,
+            conv_filters_min_size=16,
+            conv_kernels_max_size=9,
             conv_strides_max_size=2,
             keep_csv_log_dir=f"trainings/auto_encoder_model_dir_{time.strftime('%Y%m%d-%H%M%S')}"
         )
