@@ -3,12 +3,12 @@ import os
 import numpy as np
 import pandas as pd
 
-from ml_models import VAE
+from ml_models import VAEPURE
 from model_trainers import ModelTrainer
 import time
 
 
-class VAETrainer(ModelTrainer):
+class VAEPURETrainer(ModelTrainer):
     def __init__(self,
                  to_read_dir_path,
                  to_store_dir_path,
@@ -17,7 +17,7 @@ class VAETrainer(ModelTrainer):
                  learning_rate=0.0005,
                  batch_size=64,
                  epochs=200,
-                 segment_number=1):
+                 segment_number=2):
         """
         Read the configuration of the network before starting the learning process.
 
@@ -37,6 +37,9 @@ class VAETrainer(ModelTrainer):
         self._latent_space_dim = latent_space_dim
         self._csv_file_name = csv_file_name
         self._segment_number = segment_number
+        self._learning_rate = learning_rate
+        self._batch_size = batch_size
+        self._epochs = epochs
 
         super().__init__(to_read_dir_path=to_read_dir_path,
                          to_store_dir_path=to_store_dir_path,
@@ -89,10 +92,10 @@ class VAETrainer(ModelTrainer):
         # Find the mimumul value
         # TODO This changes are made because of the input file we have for the network with (433, 16) shape. The target
         # Shape is (448, 16)
-        for index, item in enumerate(x_train):
-            # Cut the useless part of the array
-            # temp_array = np.concatenate([item[:433,:], temp_zero_array], axis=0)
-            x_train[index] = item
+        # for index, item in enumerate(x_train):
+        #     # Cut the useless part of the array
+        #     # temp_array = np.concatenate([item[:433,:], temp_zero_array], axis=0)
+        #     x_train[index] = item
 
         x_train = np.array(x_train)
 
@@ -108,19 +111,22 @@ class VAETrainer(ModelTrainer):
         return np.load(file_to_read_path)
 
     def train(self):
-        autoencoder = VAE(
+
+        autoencoder = VAEPURE(
             input_shape=(256, 32, 1),
             latent_space_dim_max=3,
             latent_space_dim_min=2,
-            conv_filters_max_size=512,
+            conv_filters_max_size=64,
             conv_filters_min_size=16,
-            conv_kernels_max_size=9,
+            conv_kernels_max_size=7,
             conv_strides_max_size=2,
             keep_csv_log_dir=f"trainings/auto_encoder_model_dir_{time.strftime('%Y%m%d-%H%M%S')}"
         )
         # autoencoder.summary()
         # autoencoder.compile(self._learning_rate)
+        autoencoder.build()
         autoencoder.train(self._training_data, self._batch_size, self._epochs)
+        autoencoder.save()
 
         return autoencoder
 

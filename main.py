@@ -4,7 +4,8 @@ from downloader import VoiceDownloader
 from feature_extraction import SpectrogramExtractor, MFCCExtractor
 from report_generator import TuningReportGenerator
 from feature_extraction import EncoderBaseFeatures
-from model_trainers import VAETrainer
+from model_trainers import VAETrainer, VAEPURETrainer
+
 from utils import signal_plot
 import os
 import numpy as np
@@ -32,6 +33,24 @@ def data_trainer():
 
     # Save the model
     vae_trainer.save()
+
+
+def data_pure_trainer():
+    # Train based on the VAE Trainer
+    vae_trainer = VAEPURETrainer(to_read_dir_path="mfcc_voices_max_min_normalized",
+                                 to_store_dir_path="mfcc_voices",
+                                 csv_file_name="extracted_features_csv.csv",
+                                 latent_space_dim=3,
+                                 segment_number=2)
+
+    # Load the data to be used for training the encoder
+    vae_trainer.load()
+
+    # Train the encoder
+    vae_trainer.train()
+
+    # Save the model
+    # vae_trainer.save()
 
 
 def data_downloader():
@@ -86,12 +105,11 @@ def data_loader():
 
 
 def plotter():
-
     temp_plot = TuningReportGenerator(
         to_read_dir_path="trainings/auto_encoder_model_dir_20220623-084135/models/encoder_tuning_proj",
         latent_dim=2,
         metric_to_check='val_loss'
-        )
+    )
 
     temp_plot.load()
 
@@ -121,8 +139,9 @@ def plotter():
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     # data_downloader()
-    #data_loader()
+    # data_loader()
     # data_trainer()
-    #  tappingHelpers.tested_jason()
+    # tappingHelpers.tested_jason()
     # memoryHelpers.tested_jason()
-    plotter()
+    data_pure_trainer()
+    # plotter()

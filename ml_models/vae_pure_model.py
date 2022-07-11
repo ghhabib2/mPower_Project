@@ -2,6 +2,7 @@ import datetime
 import os
 import pickle
 
+import math
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, Conv2D, ReLU, BatchNormalization, \
     Flatten, Dense, Reshape, Conv2DTranspose, Activation, Lambda
@@ -9,7 +10,8 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.metrics import MeanMetricWrapper
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, TensorBoard
-import numpy as np
+from sklearn.model_selection import train_test_split
+import keras_tuner as kt
 import tensorflow as tf
 import time
 
@@ -17,11 +19,6 @@ tf.compat.v1.disable_eager_execution()
 
 # Root of the system
 user_home_path = user_path = os.path.expanduser("~")
-
-
-# def _calculate_kl_loss(self, y_target, y_predicted):
-#     kl_loss = -0.5 * K.sum(1 + self.log_variance - K.square(self.mu) -
-#                            K.exp(self.log_variance), axis=1)
 
 
 class VAEPURE:
@@ -32,58 +29,93 @@ class VAEPURE:
 
     def __init__(self,
                  input_shape,
-                 conv_filters,
-                 conv_kernels,
-                 conv_strides,
-                 latent_space_dim,
+                 conv_filters_max_size,
+                 conv_filters_min_size,
+                 conv_kernels_max_size,
+                 conv_strides_max_size,
+                 latent_space_dim_min,
+                 latent_space_dim_max,
                  keep_csv_log_dir,
+                 learning_rate=0.0001,
                  reconstruction_loss_weight=1000):
 
         """
 
         :param (tuple) input_shape: Input shape of input vectors
-        :param (tuple) conv_filters: Convolutional layers number and dimension
-        :param (tuple) conv_kernels: Kernel of the convolution layers
-        :param (tuple) conv_strides: stride of each convolution layer
-        :param (int) latent_space_dim: Latent space dimension
+        :param (int) conv_filters_max_size: Maximum convolutional layer dimension
+        :param (int) conv_filters_min_size: Minimum convolutional layer dimension
+        :param (int) conv_strides_max_size: Conv Max Stride Size
+        :param (int) latent_space_dim_min: Latent space dimension min size
+        :param (int) latent_space_dim_max: Latent space dimension max size
         :param (str) keep_csv_log_dir: Directory for storing the log files
+        :param (float) learning_rate: Learning Rate
         :param (int) reconstruction_loss_weight: The reconstruction loss weight
         """
 
         self._ROOT_PATH = os.path.join(user_home_path, "Documents/collected_data_mpower")
 
         self.input_shape = input_shape  # [28, 28, 1]
-        self.conv_filters = conv_filters  # [2, 4, 8]
-        self.conv_kernels = conv_kernels  # [3, 5, 3]
-        self.conv_strides = conv_strides  # [1, 2, 2]
-        self.latent_space_dim = latent_space_dim  # 2
+        self.conv_filters_max_size = conv_filters_max_size
+        self.conv_filters_min_size = conv_filters_min_size
+        self.conv_kernels_max_size = conv_kernels_max_size
+        self.conv_strides_max_size = conv_strides_max_size
+        self.latent_space_dim_min = latent_space_dim_min  # 2
+        self.latent_space_dim_max = latent_space_dim_max  # 2
         self.reconstruction_loss_weight = reconstruction_loss_weight
         self.keep_csv_log_dir = os.path.join(self._ROOT_PATH, keep_csv_log_dir)
+        self.learning_rate = learning_rate
+
+        # Define the properties to be used later
+        self.conv_filters_overall_list = []
         self.encoder = None
         self.decoder = None
         self.model = None
-
-        self._num_conv_layers = len(conv_filters)
+        self.conv_kernels = []
+        self.conv_strides = []
         self._shape_before_bottleneck = None
         self._model_input = None
 
-        self._build()
+        # Conv Filters
+        i = self.conv_filters_max_size
+        while i > self.conv_filters_min_size:
+            self.conv_filters_overall_list.append(i)
+            i = int(i / 2)
+
+        # self._build()
 
     def summary(self):
         self.encoder.summary()
         self.decoder.summary()
         self.model.summary()
 
-    def compile(self, learning_rate=0.0001):
-        optimizer = Adam(learning_rate=learning_rate)
-        self.model.compile(optimizer=optimizer,
-                           loss=self._calculate_combined_loss,
-                           metrics=[MeanMetricWrapper(fn=self._calculate_kl_loss, name="kl_loss"),
-                                    MeanMetricWrapper(fn=self._calculate_reconstruction_loss,
-                                                      name="reconstruction_loss")])
+    # def compile(self, learning_rate=0.0001):
+    #     optimizer = Adam(learning_rate=learning_rate)
+    #     self.model.compile(optimizer=optimizer,
+    #                        loss=self._calculate_combined_loss,
+    #                        metrics=[MeanMetricWrapper(fn=self._calculate_kl_loss, name="kl_loss"),
+    #                                 MeanMetricWrapper(fn=self._calculate_reconstruction_loss,
+    #                                                   name="reconstruction_loss")])
 
     def train(self, x_train, batch_size, num_epochs):
+
+        model_check_point_dir_path = os.path.join(self.keep_csv_log_dir, "models")
+
+        # Create the folder for storing the check_point_models if it is not exist
+        if not os.path.isdir(model_check_point_dir_path):
+            os.makedirs(model_check_point_dir_path)
+
         call_backs = []
+
+        x_train, x_val = train_test_split(x_train, test_size=0.2, random_state=42)
+
+
+        # print(f"""
+        # The hyperparameter search is complete. The optimal number of units in the first densely-connected
+        # layer is {best_hps.get('units')} and the optimal learning rate for the optimizer
+        # is {best_hps.get('learning_rate')}.
+        # """)
+
+        call_backs.clear()
 
         # Check if the directory exists
 
@@ -105,44 +137,45 @@ class VAEPURE:
 
         # File path and template for checkpoint models
         model_check_point_file_path = os.path.join(model_check_point_dir_path,
-                                                   "{epoch:02d}-{val_loss:.2f}.hdf5")
-        model_checkpoit_callback = ModelCheckpoint(
+                                                   "{epoch:02d}-{loss:.2f}.hdf5")
+        model_checkpoint_callback = ModelCheckpoint(
             filepath=model_check_point_file_path,
             save_weights_only=True,
-            monitor='loss',
+            monitor='val_loss',
             mode='min',
             save_best_only=True
         )
-        call_backs.append(model_checkpoit_callback)
+        call_backs.append(model_checkpoint_callback)
 
-        # EarlyStopping
-        early_stopping_callback = EarlyStopping(
-            monitor='loss',
-            min_delta=0,
-            patience=5,
-            verbose=1,
-            mode='min',
-            baseline=None,
-            restore_best_weights=False
-        )
+        # # EarlyStopping
+        # early_stopping_callback = EarlyStopping(
+        #     monitor='val_loss',
+        #     min_delta=0,
+        #     patience=10,
+        #     verbose=1,
+        #     mode='min',
+        #     baseline=None,
+        #     restore_best_weights=False
+        # )
+        #
+        # call_backs.append(early_stopping_callback)
 
-        call_backs.append(early_stopping_callback)
-
-        # Tensorboard
-        model_tensorboard_dir_callback = \
-            os.path.join(self.keep_csv_log_dir,
-                         f"tensor_board_log_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")
-
-        # Check the directory and make it if it is not exist.
-        if not os.path.isdir(model_tensorboard_dir_callback):
-            os.makedirs(model_tensorboard_dir_callback)
-
-        tensorboard_callback = TensorBoard(log_dir=model_tensorboard_dir_callback, histogram_freq=1)
-
-        call_backs.append(tensorboard_callback)
+        # # Tensorboard
+        # model_tensorboard_dir_callback = \
+        #     os.path.join(self.keep_csv_log_dir,
+        #                  f"tensor_board_log_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")
+        #
+        # # Check the directory and make it if it is not exist.
+        # if not os.path.isdir(model_tensorboard_dir_callback):
+        #     os.makedirs(model_tensorboard_dir_callback)
+        #
+        # tensorboard_callback = TensorBoard(log_dir=model_tensorboard_dir_callback, histogram_freq=1)
+        #
+        # call_backs.append(tensorboard_callback)
 
         self.model.fit(x_train,
                        x_train,
+                       validation_data=(x_val, x_val),
                        batch_size=batch_size,
                        callbacks=call_backs,
                        epochs=num_epochs,
@@ -200,21 +233,19 @@ class VAEPURE:
 
     def _calculate_reconstruction_loss(self, y_target, y_predicted):
         error = y_target - y_predicted
+
         reconstruction_loss = K.mean(K.square(error), axis=[1, 2, 3])
         return reconstruction_loss
 
+    def _calculate_mu(self, y_target, y_predicted):
+        return self.mu
+
+    def _calculate_log_variance(self, y_target, y_predicted):
+        return K.exp(self.log_variance / 2)
+
     def _calculate_kl_loss(self, y_target, y_predicted):
-        kl_loss = -0.5 * K.sum(1 + self.log_variance - K.square(self.mu) -
-                               K.exp(self.log_variance), axis=1)
+        kl_loss = -0.5 * K.sum(1 + self.log_variance - K.square(self.mu) - K.exp(self.log_variance), axis=1)
         return kl_loss
-
-    def _calculate_kl_loss_metric(self, FACTOR=1):
-        def _calculate_kl_loss(y_target, y_predicted):
-            kl_loss = -0.5 * K.sum(1 + self.log_variance - K.square(self.mu) -
-                                   K.exp(self.log_variance), axis=1) * FACTOR
-            return kl_loss
-
-        return _calculate_kl_loss
 
     def _create_folder_if_it_doesnt_exist(self, folder):
         if not os.path.exists(folder):
@@ -239,15 +270,133 @@ class VAEPURE:
         save_path = os.path.join(save_folder, f"weights_{time.strftime('%Y%m%d-%H%M%S')}.hdf5")
         self.model.save_weights(save_path)
 
-    def _build(self):
+    # def _build(self, hp):
+    #
+    #     # Generate the list of conv layers for process
+    #     temp_conv_filters = hp.Choice('best_conv_filter',
+    #                                   values=self.conv_filters_overall_list)
+    #     temp_kernel_size = hp.Int('best_kernel_size',
+    #                               min_value=1,
+    #                               max_value=self.conv_kernels_max_size,
+    #                               step=2)
+    #
+    #     temp_conv_stride_size = self.conv_strides_max_size
+    #
+    #     temp_latent_space_dim = hp.Int('best_latent_space_dim',
+    #                                    min_value=self.latent_space_dim_min,
+    #                                    max_value=self.latent_space_dim_max)
+    #
+    #     # Set the parameters for hyperparameter optimization
+    #     self.latent_space_dim = temp_latent_space_dim
+    #     self.conv_filters = []
+    #     i = temp_conv_filters
+    #     while i >= self.conv_filters_min_size:
+    #         self.conv_filters.append(i)
+    #         i = int(i / 2)
+    #
+    #     self.conv_filters = tuple(self.conv_filters)
+    #     self._num_conv_layers = len(self.conv_filters)
+    #
+    #     self.conv_kernels = []
+    #     self.conv_strides = []
+    #     for i in range(self._num_conv_layers):
+    #         self.conv_kernels.append(temp_kernel_size)
+    #         if i == self._num_conv_layers - 1:
+    #             self.conv_strides.append((temp_conv_stride_size, 1))
+    #         else:
+    #             self.conv_strides.append(temp_conv_stride_size)
+    #
+    #     # Convert List to the Tuple
+    #     self.conv_kernels = tuple(self.conv_kernels)
+    #
+    #     # Kernel Size
+    #     self.conv_strides = tuple(self.conv_strides)
+    #
+    #     self._build_encoder()
+    #     self._build_decoder()
+    #
+    #     temp_model = self._build_autoencoder()
+    #
+    #     temp_model.summary()
+    #
+    #     optimizer = Adam(learning_rate=self.learning_rate)
+    #     temp_model.compile(optimizer=optimizer,
+    #                        loss=self._calculate_combined_loss,
+    #                        metrics=[MeanMetricWrapper(fn=self._calculate_kl_loss, name="kl_loss"),
+    #                                 MeanMetricWrapper(fn=self._calculate_reconstruction_loss,
+    #                                                   name="reconstruction_loss"),
+    #                                 MeanMetricWrapper(fn=self._calculate_mu, name="mu"),
+    #                                 MeanMetricWrapper(fn=self._calculate_log_variance, name="std")])
+    #
+    #     return temp_model
+
+    def build(self):
+        """
+        Build the target CNN network
+
+        :return: Return a ready to learn network
+        :rtype: None
+        """
+
+        # Generate the list of conv layers for process
+
+        temp_latent_space_dim = self.latent_space_dim_max
+
+        # Set the parameters for hyperparameter optimization
+        self.latent_space_dim = temp_latent_space_dim
+
+        self.conv_filters = []
+
+        i = self.conv_filters_max_size
+        while i >= self.conv_filters_min_size:
+            self.conv_filters.append(i)
+            i = int(i / 2)
+
+        self.conv_filters = tuple(self.conv_filters)
+        self._num_conv_layers = len(self.conv_filters)
+
+        self.conv_kernels = []
+        self.conv_strides = []
+        for i in range(self._num_conv_layers):
+            self.conv_kernels.append(self.conv_kernels_max_size)
+            if i == self._num_conv_layers - 1:
+                self.conv_strides.append((self.conv_strides_max_size, 1))
+            else:
+                self.conv_strides.append(self.conv_strides_max_size)
+
+        # Convert List to the Tuple
+        self.conv_kernels = tuple(self.conv_kernels)
+
+        # Kernel Size
+        self.conv_strides = tuple(self.conv_strides)
+
         self._build_encoder()
         self._build_decoder()
-        self._build_autoencoder()
+
+        temp_model = self._build_autoencoder()
+
+        temp_model.summary()
+
+        optimizer = Adam(learning_rate=self.learning_rate)
+        temp_model.compile(optimizer=optimizer,
+                           loss=self._calculate_combined_loss,
+                           metrics=[MeanMetricWrapper(fn=self._calculate_kl_loss, name="kl_loss"),
+                                    MeanMetricWrapper(fn=self._calculate_reconstruction_loss,
+                                                      name="reconstruction_loss"),
+                                    MeanMetricWrapper(fn=self._calculate_mu, name="mu"),
+                                    MeanMetricWrapper(fn=self._calculate_log_variance, name="std")])
+
+        self.model = temp_model
 
     def _build_autoencoder(self):
+        """
+        Return the model to be trained
+
+        :return: Return the model to be trained
+        """
         model_input = self._model_input
         model_output = self.decoder(self.encoder(model_input))
-        self.model = Model(model_input, model_output, name="autoencoder")
+        return Model(model_input, model_output, name="autoencoder")
 
     def _build_decoder(self):
         decoder_input = self._add_decoder_input()
@@ -257,11 +406,16 @@ class VAEPURE:
         decoder_output = self._add_decoder_output(conv_transpose_layers)
         self.decoder = Model(decoder_input, decoder_output, name="decoder")
 
+        self.decoder.summary()
+
+        return self.decoder
+
     def _add_decoder_input(self):
         return Input(shape=self.latent_space_dim, name="decoder_input")
 
     def _add_dense_layer(self, decoder_input):
-        num_neurons = np.prod(self._shape_before_bottleneck)  # [1, 2, 4] -> 8
+        # num_neurons = np.prod(self._shape_before_bottleneck)
+        num_neurons = math.prod(self._shape_before_bottleneck)
         dense_layer = Dense(num_neurons, name="decoder_dense")(decoder_input)
         return dense_layer
 
@@ -303,11 +457,14 @@ class VAEPURE:
         return output_layer
 
     def _build_encoder(self):
+
         encoder_input = self._add_encoder_input()
         conv_layers = self._add_conv_layers(encoder_input)
         bottleneck = self._add_bottleneck(conv_layers)
         self._model_input = encoder_input
         self.encoder = Model(encoder_input, bottleneck, name="encoder")
+
+        self.encoder.summary()
 
     def _add_encoder_input(self):
         return Input(shape=self.input_shape, name="encoder_input")
@@ -340,6 +497,9 @@ class VAEPURE:
         """Flatten data and add bottleneck with Guassian sampling (Dense
         layer).
         """
+
+        # Latent Space Dimension Hypermarket
+
         self._shape_before_bottleneck = K.int_shape(x)[1:]
         x = Flatten()(x)
         self.mu = Dense(self.latent_space_dim, name="mu")(x)
@@ -348,9 +508,13 @@ class VAEPURE:
 
         def sample_point_from_normal_distribution(args):
             mu, log_variance = args
-            epsilon = K.random_normal(shape=K.shape(self.mu), mean=0.,
+
+            epsilon = K.random_normal(shape=K.shape(self.mu),
+                                      mean=0,
                                       stddev=1.)
+
             sampled_point = mu + K.exp(log_variance / 2) * epsilon
+
             return sampled_point
 
         x = Lambda(sample_point_from_normal_distribution,
